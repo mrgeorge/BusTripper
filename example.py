@@ -1,25 +1,11 @@
 import psycopg2
-
-
-def readLogin(filename):
-    """Construct dict with login keys from file
-
-    Expects file with 1 key per line in the format
-    key=value
-    """
-    loginDict = {}
-    with open(filename) as ff:
-        for line in ff:
-            elements = line.rstrip().split("=")
-            loginDict[elements[0]] = elements[1]
-
-    return loginDict
+import BusTripper
 
 if __name__ == "__main__":
 
-    loginFile = "remotedb.login"
-    loginDict = readLogin(loginFile)
-    
+    loginFile = "data/remotedb.login"
+    loginDict = BusTripper.io.readKeys(loginFile)
+
     conn = psycopg2.connect(**loginDict)
     cur = conn.cursor()
 

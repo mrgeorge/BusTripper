@@ -252,6 +252,6 @@ def custom(localDBFilename):
     if deviceID.lower == "none":
         deviceID = None
     limit = raw_input('Enter a limit: ')
-    return selectData(cur, cols, tableName, date, time, deviceID, (int)limit)
+    return selectData(cur, cols, tableName, date, time, deviceID, int(limit))
 
 

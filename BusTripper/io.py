@@ -3,7 +3,10 @@ from collections import Iterable
 import re
 import numpy as np
 import sqlite3
-import psycopg2
+try:
+    import psycopg2
+except:
+    pass
 
 
 def readKeys(filename):
@@ -228,3 +231,23 @@ def selectData(cur, cols=None, tableName="raw_loc_subset", date=None,
         rec[col] = data[colNum]
 
     return rec
+
+def custom(localDBFilename):
+    cur = openLocalDB(localDBFilename)[1]
+    cols = raw_input('Enter a column name: ')
+    if cols.lower() == "none":
+        cols = None
+    tableName="raw_loc_subset"
+    date = raw_input('Enter a date: ') #YYYY-MM-DD
+    if date.lower=="none":
+        date = None
+    time = raw_input('Enter a time: ') #HH:MM:SS
+    if time.lower == "none":
+        time = None
+    deviceID = raw_input('Enter a deviceID: ')
+    if deviceID.lower == "none":
+        deviceID = None
+    limit = raw_input('Enter a limit: ')
+    return selectData(cur, cols, tableName, date, time, deviceID, (int)limit)
+
+

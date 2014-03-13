@@ -172,12 +172,12 @@ def selectData(cur, cols=None, tableName="raw_loc_subset", date=None,
 
     if date is not None:
         if re.match(dateFmt, date):
-            qWhere.append("DATE(time/1000, 'UNIXEPOCH') = {}".format(date))
+            qWhere.append("DATE(time/1000, 'UNIXEPOCH') = '{}'".format(date))
         elif isinstance(date, Iterable): # range
             if re.match(dateFmt, date[0]) and re.match(dateFmt, date[1]):
-                qWhere.append("DATE(time/1000,'UNIXEPOCH') >= {}".format(
+                qWhere.append("DATE(time/1000,'UNIXEPOCH') >= '{}'".format(
                     date[0]))
-                qWhere.append("DATE(time/1000, 'UNIXEPOCH') <= {}".format(
+                qWhere.append("DATE(time/1000, 'UNIXEPOCH') <= '{}'".format(
                     date[1]))
             else:
                 raise ValueError(date)
@@ -186,12 +186,12 @@ def selectData(cur, cols=None, tableName="raw_loc_subset", date=None,
 
     if time is not None:
         if re.match(timeFmt, time):
-            qWhere.append("TIME(time/1000, 'UNIXEPOCH') = {}".format(time))
+            qWhere.append("TIME(time/1000, 'UNIXEPOCH') = '{}'".format(time))
         elif isinstance(time, Iterable): # range
             if re.match(timeFmt, time[0]) and re.match(timeFmt, time[1]):
-                qWhere.append("TIME(time/1000,'UNIXEPOCH') >= {}".format(
+                qWhere.append("TIME(time/1000,'UNIXEPOCH') >= '{}'".format(
                     time[0]))
-                qWhere.append("TIME(time/1000, 'UNIXEPOCH') <= {}".format(
+                qWhere.append("TIME(time/1000, 'UNIXEPOCH') <= '{}'".format(
                     time[1]))
             else:
                 raise ValueError(time)
@@ -200,7 +200,7 @@ def selectData(cur, cols=None, tableName="raw_loc_subset", date=None,
 
     if deviceID is not None:
         if isinstance(deviceID, types.StringTypes):
-            qWhere.append("device_id = {}".format(deviceID))
+            qWhere.append("device_id = '{}'".format(deviceID))
         elif isinstance(deviceID, Iterable):
             qWhere.append("device_id IN {}".format(','.join(deviceID)))
         else:

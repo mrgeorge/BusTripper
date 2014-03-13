@@ -3,7 +3,12 @@ from collections import Iterable
 import re
 import numpy as np
 import sqlite3
-import psycopg2
+
+try:
+    import psycopg2
+    hasPsycopg=True
+except:
+    hasPsycopg=True
 
 
 def readKeys(filename):
@@ -106,6 +111,8 @@ def copyRemoteDB(loginFilename, localDBFilename, limit = 10):
     lcon, lcur = openLocalDB(localDBFilename)
 
     # Open remote DB
+    if not hasPsycopg:
+        raise ImportError(psycopg2)
     loginDict = readKeys(loginFilename)
     rcon = psycopg2.connect(**loginDict)
     rcur = rcon.cursor()

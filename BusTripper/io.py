@@ -236,6 +236,13 @@ def selectData(cur, cols=None, tableName="raw_loc_subset", date=None,
 
     return rec
 
+def selectDevices(cur, date):
+    cur.execute("""SELECT DISTINCT device_id
+                FROM raw_loc_subset
+                WHERE DATE(time/1000.,'UNIXEPOCH') = '%s'
+                """ % date)
+    return [row[0] for row in cur.fetchall()]
+
 def custom(localDBFilename):
     cur = openLocalDB(localDBFilename)[1]
     cols = raw_input('Enter a column name: ')
@@ -253,5 +260,3 @@ def custom(localDBFilename):
         deviceID = None
     limit = raw_input('Enter a limit: ')
     return selectData(cur, cols, tableName, date, time, deviceID, int(limit))
-
-

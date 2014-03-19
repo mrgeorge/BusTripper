@@ -237,11 +237,38 @@ def selectData(cur, cols=None, tableName="raw_loc_subset", date=None,
     return rec
 
 def selectDevices(cur, date):
+    """Get list of device_id strings for date"""
     cur.execute("""SELECT DISTINCT device_id
                 FROM raw_loc_subset
                 WHERE DATE(time/1000.,'UNIXEPOCH') = '%s'
                 """ % date)
     return [row[0] for row in cur.fetchall()]
+
+def joinRawToEvents(cur):
+    """Create a view that joins raw location with events table
+
+    First group events by device_id, date, and trip_id.
+    Then match all the raw location entries to the device/day/trip groups
+        based on the time interval.
+    The created view can be used as a training set with raw locations and the
+        "ground truth" trip/route assignment.
+    """
+    query = """
+    CREATE TEMP VIEW IF NOT EXISTS rlev AS
+    SELECT eg.trip_id, eg.route_id, r.device_id,
+           r.time, r.latitude, r.longitude,
+           r.speed, r.bearing, r.accuracy
+    FROM raw_loc_subset AS r
+    LEFT OUTER JOIN
+         (SELECT device_id, DATE(time/1000,'unixepoch') AS dd,
+                 MIN(time) AS tmin, MAX(time) AS tmax, trip_id, route_id
+          FROM event_subset
+          GROUP BY device_id,dd,trip_id) AS eg
+    ON (eg.device_id = r.device_id AND
+        eg.dd = DATE(r.time/1000,'unixepoch') AND
+        r.time BETWEEN tmin AND tmax);
+    """
+    cur.execute(query)
 
 def custom(localDBFilename):
     cur = openLocalDB(localDBFilename)[1]

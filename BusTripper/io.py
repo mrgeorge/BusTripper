@@ -137,18 +137,21 @@ def getTableNames(cur):
     return [line[0] for line in result]
 
 def getColumnNames(cur, tableName):
-    if tableName not in getTableNames(cur):
-        raise ValueError(tableName)
+#    if tableName not in getTableNames(cur):
+#        raise ValueError(tableName)
 
     cur.execute("PRAGMA TABLE_INFO({})".format(tableName))
     result = cur.fetchall()
     return [line[1] for line in result]
 
 def selectData(cur, cols=None, tableName="raw_loc_subset", date=None,
-               time=None, deviceID=None, limit=None):
+               time=None, deviceID=None, tripID=None, routeID=None,
+               limit=None):
     """Construct and execute select query
 
-    SELECT {cols} FROM {tableName} [WHERE {date, time, deviceID}]
+    SELECT {cols}
+    FROM {tableName}
+    [WHERE {date, time, deviceID, tripID, routeID}]
     """
 
     # Get string of selected column names for query
@@ -213,6 +216,22 @@ def selectData(cur, cols=None, tableName="raw_loc_subset", date=None,
         else:
             raise ValueError(deviceID)
 
+    if tripID is not None:
+        if isinstance(tripID, types.StringTypes):
+            qWhere.append("trip_id = '{}'".format(tripID))
+        elif isinstance(tripID, Iterable):
+            qWhere.append("trip_id IN {}".format(','.join(tripID)))
+        else:
+            raise ValueError(tripID)
+
+    if routeID is not None:
+        if isinstance(routeID, types.StringTypes):
+            qWhere.append("route_id = '{}'".format(routeID))
+        elif isinstance(routeID, Iterable):
+            qWhere.append("route_id IN {}".format(','.join(routeID)))
+        else:
+            raise ValueError(routeID)
+
     if len(qWhere) > 0:
         qWhere = "WHERE " + ' AND '.join(qWhere)
 
@@ -240,8 +259,17 @@ def selectDevices(cur, date):
     """Get list of device_id strings for date"""
     cur.execute("""SELECT DISTINCT device_id
                 FROM raw_loc_subset
-                WHERE DATE(time/1000.,'UNIXEPOCH') = '%s'
-                """ % date)
+                WHERE DATE(time/1000.,'UNIXEPOCH') = ?
+                """, (date,))
+    return [row[0] for row in cur.fetchall()]
+
+def selectTrips(cur, date, deviceID):
+    """Get list of trip_id strings for device and date"""
+    cur.execute("""SELECT DISTINCT trip_id
+                FROM event_subset
+                WHERE DATE(time/1000.,'UNIXEPOCH') = ?
+                AND device_id = ?
+                """, (date, deviceID))
     return [row[0] for row in cur.fetchall()]
 
 def joinRawToEvents(cur):

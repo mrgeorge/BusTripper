@@ -10,8 +10,7 @@ def showDepot():
     ax = plt.gca()
     ax.add_patch(circ)
 
-def plotCoords(rec, plotFilename=None, showPlot=False, colorType="time",
-                   **kwargs):
+def plotCoords(rec, plotFilename=None, showPlot=False, colorType="time"):
     """Plot GPS coordinates as a map
 
     Inputs:

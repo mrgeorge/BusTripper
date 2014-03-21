@@ -33,10 +33,13 @@ class GtfsDbManager(object):
 
 
     def ensure_extra_tables(self):
-        create_trips_table = "CREATE TABLE IF NOT EXISTS trips_simple AS select trip_id," \
-        + " route_id, block_id, service_id, direction FROM trips, directions WHERE" \
-        + " trips.shape_id = directions.shape_id;"
-        
+#        create_trips_table = "CREATE TABLE IF NOT EXISTS trips_simple AS select trip_id," \
+#        + " route_id, block_id, service_id, direction FROM trips, directions WHERE" \
+#        + " trips.shape_id = directions.shape_id;"
+        create_trips_table = """CREATE TABLE IF NOT EXISTS trips_simple AS
+            SELECT trip_id, route_id, block_id, service_id, direction_id
+            FROM trips;
+        """
         t_start = time.time()
         self.conn.execute(create_trips_table);
         t_end = time.time()

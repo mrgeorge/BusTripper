@@ -141,32 +141,42 @@ class EventsDB(object):
         timeFmt = "^[0-9]{2}:[0-9]{2}:[0-9]{2}$" # regex for HH:MM:SS
 
         if date is not None:
-            if re.match(dateFmt, date):
-                qWhere.append("DATE(time/1000, 'UNIXEPOCH') = '{}'".format(date))
-            elif isinstance(date, Iterable): # range
-                if re.match(dateFmt, date[0]) and re.match(dateFmt, date[1]):
-                    qWhere.append("DATE(time/1000,'UNIXEPOCH') >= '{}'".format(
-                        date[0]))
-                    qWhere.append("DATE(time/1000, 'UNIXEPOCH') <= '{}'".format(
-                        date[1]))
-                else:
-                    raise ValueError(date)
-            else:
-                raise ValueError(date)
+            try:
+                if re.match(dateFmt, date):
+                    qWhere.append("""
+                    DATE(time/1000, 'UNIXEPOCH') = '{}'
+                    """.format(date))
+            except TypeError:
+                if isinstance(date, Iterable): # range
+                    if (re.match(dateFmt, date[0]) and
+                        re.match(dateFmt, date[1])):
+                        qWhere.append("""
+                        DATE(time/1000,'UNIXEPOCH') >= '{}'
+                        """.format(date[0]))
+                        qWhere.append("""
+                        DATE(time/1000, 'UNIXEPOCH') <= '{}'
+                        """.format(date[1]))
+                    else:
+                        raise ValueError(date)
 
         if time is not None:
-            if re.match(timeFmt, time):
-                qWhere.append("TIME(time/1000, 'UNIXEPOCH') = '{}'".format(time))
-            elif isinstance(time, Iterable): # range
-                if re.match(timeFmt, time[0]) and re.match(timeFmt, time[1]):
-                    qWhere.append("TIME(time/1000,'UNIXEPOCH') >= '{}'".format(
-                        time[0]))
-                    qWhere.append("TIME(time/1000, 'UNIXEPOCH') <= '{}'".format(
-                        time[1]))
-                else:
-                    raise ValueError(time)
-            else:
-                raise ValueError(time)
+            try:
+                if re.match(timeFmt, time):
+                    qWhere.append("""
+                    TIME(time/1000, 'UNIXEPOCH') = '{}'
+                    """.format(time))
+            except TypeError:
+                if isinstance(time, Iterable): # range
+                    if (re.match(timeFmt, time[0]) and
+                        re.match(timeFmt, time[1])):
+                        qWhere.append("""
+                        TIME(time/1000,'UNIXEPOCH') >= '{}'
+                        """.format(time[0]))
+                        qWhere.append("""
+                        TIME(time/1000, 'UNIXEPOCH') <= '{}'
+                        """.format(time[1]))
+                    else:
+                        raise ValueError(time)
 
         if deviceID is not None:
             if isinstance(deviceID, types.StringTypes):
@@ -237,6 +247,9 @@ class EventsDB(object):
             based on the time interval.
         The created view can be used as a training set with raw locations and
             the "ground truth" trip/route assignment.
+
+        Note: This join is very slow with python sqlite.
+              Try with command line interface instead.
         """
         query = """
         CREATE TABLE IF NOT EXISTS rlev AS

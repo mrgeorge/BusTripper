@@ -1,11 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def getDepotCoords():
-    return (-1.96143, 43.3172) # lon, lat
+import utils
 
 def showDepot():
-    circ = plt.Circle(getDepotCoords(), radius=0.001, color='gray',
+    circ = plt.Circle(utils.getDepotCoords()[::-1], radius=0.001, color='gray',
                       fill=False, lw=3, ls='dashed')
     ax = plt.gca()
     ax.add_patch(circ)

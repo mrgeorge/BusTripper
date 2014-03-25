@@ -11,3 +11,13 @@ systems to prevent issues like bus bunching.
 
 BusTripper is being developed as part of a data science class project 
 at UC Berkeley in coordination with Via Analytics.
+
+External Dependencies
+---------------------
+
+BusTripper currently uses the following packages:
+
+* python, and common libaries like numpy, matplotlib, sklearn, re, and
+  sqlite3
+
+* [geopy](https://github.com/geopy/geopy) Python GIS package

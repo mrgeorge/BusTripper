@@ -12,6 +12,7 @@ except ImportError:
     
 import eventsDBManager
 import utils
+import plot
 
 # two versions of datetime functions follow
 # first uses datetime objects which aren't vectorized so are slow
@@ -166,7 +167,7 @@ def classify(dbFileLoc):
 
     utils.printCurrentTime()
     print "training KNN model"
-    knn = KNeighborsClassifier(neighbors=10)
+    knn = KNeighborsClassifier(n_neighbors=10)
     knn.fit(xTrain, yTrain)
 
     utils.printCurrentTime()
@@ -174,7 +175,13 @@ def classify(dbFileLoc):
     print "Score = {}".format(knn.score(xTest, yTest))
 
     utils.printCurrentTime()
-    print "getting confusion matrix"
+    print "getting predictions again"
     yHat = knn.predict(xTest)
+    utils.printCurrentTime()
+    print "getting confusion matrix"
     cm = confusion_matrix(yTest, yHat)
+    utils.printCurrentTime()
+    print "plotting confusion matrix"
     plot.plotConfusionMatrix(cm, showPlot=True)
+    utils.printCurrentTime()
+    print "Done"

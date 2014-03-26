@@ -124,8 +124,6 @@ def getData(dbFileLoc, startDate, endDate):
 
 def encodeLabels(trainLabels, testLabels):
     # convert trip_id strings to unique integers for classification
-    utils.printCurrentTime()
-    print "encoding labels"
     le = LabelEncoder()
     le.fit(np.concatenate((trainLabels,testLabels)))
     yTrain = le.transform(trainLabels)
@@ -172,16 +170,23 @@ def classify(dbFileLoc):
 
     utils.printCurrentTime()
     print "predicting on test data"
-    print "Score = {}".format(knn.score(xTest, yTest))
+#    print "Score = {}".format(knn.score(xTest, yTest))
 
-    utils.printCurrentTime()
-    print "getting predictions again"
+#    utils.printCurrentTime()
+#    print "getting predictions again"
     yHat = knn.predict(xTest)
+    print "Score = {}".format(float(len((yHat == yTest).nonzero()[0]))/len(yTest))
     utils.printCurrentTime()
     print "getting confusion matrix"
     cm = confusion_matrix(yTest, yHat)
     utils.printCurrentTime()
     print "plotting confusion matrix"
-    plot.plotConfusionMatrix(cm, showPlot=True)
+    plot.plotConfusionMatrix(np.log10(1+cm), showPlot=True)
     utils.printCurrentTime()
+    plot.plotHistograms((yTrain, yTest, yHat), ("red","green","blue"),
+                        ("Training", "Test (Actual)", "Test (Predicted)"),
+                        "Trips", log=True, showPlot=True)
     print "Done"
+
+
+    return (trainingData, testData, xTrain, xTest, yTrain, yTest, yHat, knn, cm)

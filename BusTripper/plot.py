@@ -46,3 +46,13 @@ def plotCoords(rec, plotFilename=None, showPlot=False, colorType="time"):
     if plotFilename is not None:
         plt.savefig(plotFilename)
 
+def plotConfusionMatrix(cm, plotFilename=None, showPlot=False):
+    plt.imshow(cm, interpolation="nearest")
+    plt.colorbar()
+    plt.xlabel("Predicted Trip")
+    plt.ylabel("True Trip")
+
+    if showPlot:
+        plt.show()
+    if plotFilename is not None:
+        plt.savefig(plotFilename)

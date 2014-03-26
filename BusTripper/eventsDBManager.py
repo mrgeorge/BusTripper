@@ -15,6 +15,8 @@ class EventsDB(object):
         if self.getTableNames() == []:
             self.createDB()
 
+        self.ensureIndices()
+
     def __del__(self):
         self.conn.commit()
         self.conn.close()
@@ -62,6 +64,27 @@ class EventsDB(object):
             dt                       INTEGER
         );
         """)
+
+    def ensureIndices(self):
+        """Create indices to speed up select queries"""
+        self.conn.executescript("""
+        CREATE INDEX IF NOT EXISTS idxEvDev ON event_subset(device_id);
+        CREATE INDEX IF NOT EXISTS idxEvTime ON event_subset(time);
+        CREATE INDEX IF NOT EXISTS idxEvTrip ON event_subset(trip_id);
+        CREATE INDEX IF NOT EXISTS idxEvRoute ON event_subset(route_id);
+        CREATE INDEX IF NOT EXISTS idxRLDev ON raw_loc_subset(device_id);
+        CREATE INDEX IF NOT EXISTS idxRLTime ON raw_loc_subset(time);
+        """
+        )
+        if "rlev" in self.getTableNames():
+            self.conn.executescript("""
+            CREATE INDEX IF NOT EXISTS idxRlevDev ON rlev(device_id);
+            CREATE INDEX IF NOT EXISTS idxRlevTime ON rlev(time);
+            CREATE INDEX IF NOT EXISTS idxRlevTrip ON rlev(trip_id);
+            CREATE INDEX IF NOT EXISTS idxRlevRoute ON rlev(route_id);
+            """
+            )
+        self.conn.commit()
 
     def getTableNames(self):
         cur = self.conn.execute("""

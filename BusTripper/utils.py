@@ -95,7 +95,7 @@ def latlonToMeters(latitude, longitude):
     if not hasGeopy:
         raise ImportError("geopy")
 
-    refLat,refLon = utils.getDepotCoords()
+    refLat,refLon = getDepotCoords()
     latDist = np.array([geopy.distance.distance((lat,lon), (refLat,lon)).meters
                         for lat,lon in zip(latitude,longitude)])
     lonDist = np.array([geopy.distance.distance((lat,lon), (lat,refLon)).meters
@@ -107,7 +107,7 @@ def latlonToMeters2(latitude, longitude):
     if not hasGeopy:
         raise ImportError("geopy")
 
-    refLat,refLon = utils.getDepotCoords()
+    refLat,refLon = getDepotCoords()
     latDist = np.array([geopy.distance.great_circle((lat,lon), (refLat,lon)).meters
                         for lat,lon in zip(latitude,longitude)])
     lonDist = np.array([geopy.distance.great_circle((lat,lon), (lat,refLon)).meters
@@ -116,7 +116,31 @@ def latlonToMeters2(latitude, longitude):
 
 def latlonToMeters3(latitude, longitude):
     """Convert lat,lon separation from depot to meters"""
-    refLat,refLon = utils.getDepotCoords()
+    refLat,refLon = getDepotCoords()
     latDist = metersBetweenLatLonPair(latitude,longitude,refLat,longitude)
     lonDist = metersBetweenLatLonPair(latitude,longitude,latitude,refLon)
     return (latDist, lonDist)
+
+
+def parseTripID(tripID):
+    """Split tripID str (or str array) into components"""
+    if isinstance(tripID, Iterable):
+        serviceID = np.array([trip[0:4] if trip is not None else None
+                            for trip in tripID])
+        routeID = np.array([trip[4:8] if trip is not None else None
+                            for trip in tripID])
+        blockID = np.array([trip[8:12] if trip is not None else None
+                            for trip in tripID])
+        departureTime = np.array([trip[12:16] if trip is not None else None
+                            for trip in tripID])
+        direction = np.array([trip[16:] if trip is not None else None
+                            for trip in tripID])
+    elif trip is not None:
+        serviceID = trip[0:4]
+        routeID = trip[4:8]
+        blockID = trip[8:12]
+        departureTime = trip[12:16]
+        direction = trip[16:]
+    else:
+        serviceID = routeID = blockID = departureTime = direction = None
+    return (serviceID, routeID, blockID, departureTime, direction)

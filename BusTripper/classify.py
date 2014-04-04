@@ -15,7 +15,7 @@ import plot
 
 
 def getData(dbFileLoc, startDate, endDate):
-    cols = ("time","longitude","latitude","trip_id")
+    cols = ("time","longitude","latitude","trip_id","device_id")
     db = eventsDBManager.EventsDB(dbFileLoc)
     rec = db.selectData(tableName="rlev",date=(startDate, endDate), cols=cols)
 

@@ -2,6 +2,7 @@ import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import confusion_matrix
+import scipy.stats
 
 try:
     import geopy.distance
@@ -43,6 +44,65 @@ def preprocess(rec):
     xData = np.array([timeScaled, latDist, lonDist]).T
 
     return xData
+
+def sortByDeviceTime(rec):
+    """Sort data recarray by device_id and time
+
+    Sorting is not done in place and returns a new copy
+    """
+    ind = rec.argsort(order=("device_id","time"))
+    return (rec[ind], ind)
+
+def getRecentAssignments(recSorted, yHatSorted, ind, nPts=10, dtMin=None):
+    """Get list trip assignments for device_id in recent window
+
+    Inputs:
+        recSorted - data recarray sorted by device_id and time
+        yHatSorted - trip assignments (encoded ids) sorted like recSorted
+        ind - index of recSorted to start from
+        nPts - number of trip assignments to return (default = 10)
+        dtMin - if nPts is None, dtMin defines time window to return in minutes
+    Returns:
+        recarray of trip assignments for device_id in given window
+        (note: list may be shorter than nPts if insufficient data exists)
+    """
+
+    device_id = recSorted['device_id'][ind]
+    time = recSorted['time'][ind]
+
+    if nPts is not None:
+        recWindow = recSorted[np.max([0,ind-nPts-1]):np.max([0,ind])]
+        yHatWindow = yHatSorted[np.max([0,ind-nPts-1]):np.max([0,ind])]
+        devMatch = (recWindow['device_id'] == device_id)
+        return yHatWindow[devMatch]
+    elif dtMin is not None:
+        window = ((recSorted['time'][:ind] > time - dtMin*60*1000) &
+                  (recSorted['device_id'] == device_id))
+        return yHatSorted[window]
+    else:
+        raise ValueError((nPts, dtMin))
+
+def smoothAssignments(rec, yHat, yTrue, **kwargs):
+    sortInd = np.argsort(rec, order=("device_id","time"))
+    newAssignments = yHat[sortInd]
+    for ii in xrange(rec.size):
+        window = getRecentAssignments(rec[sortInd], yHat[sortInd], ii, **kwargs)
+        try:
+            mode = scipy.stats.mode(window)[0][0]
+            newAssignments[ii] = mode
+            if((yTrue[sortInd][ii] == yHat[sortInd][ii]) & (mode == yTrue[sortInd][ii])):
+                print "keeping correct"
+            elif((yTrue[sortInd][ii] == yHat[sortInd][ii]) & (mode != yTrue[sortInd][ii])):
+                print "changing to incorrect"
+            elif((yTrue[sortInd][ii] != yHat[sortInd][ii]) & (mode == yTrue[sortInd][ii])):
+                print "changing to correct"
+            else:
+                print "incorrect before and after"
+        except UnboundLocalError:
+            print "insufficent data"
+            pass # leave original assignment
+    newAssignments[sortInd] = newAssignments # return to original order
+    return newAssignments
 
 def classify(dbFileLoc):
     utils.printCurrentTime()

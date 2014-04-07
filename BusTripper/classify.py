@@ -1,6 +1,7 @@
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import confusion_matrix
 import scipy.stats
 
@@ -23,17 +24,16 @@ def getData(dbFileLoc, startDate, endDate):
     return rec
 
 def encodeLabels(trainLabels, testLabels):
-    # convert trip_id strings to unique integers for classification
-    le = LabelEncoder()
-    le.fit(np.concatenate((trainLabels,testLabels)))
-    yTrain = le.transform(trainLabels)
-    yTest = le.transform(testLabels)
+    """Convert trip_id strings to unique integer labels for classification"""
+    encoder = LabelEncoder()
+    encoder.fit(np.concatenate((trainLabels,testLabels)))
+    yTrain = encoder.transform(trainLabels)
+    yTest = encoder.transform(testLabels)
 
-    return (yTrain, yTest)
+    return (yTrain, yTest, encoder)
 
 def preprocess(rec):
-
-    # constuct design matrix
+    """Rescale features and constuct design matrix for classifier"""
     utils.printCurrentTime()
     print "scaling time"
     weekSecs = utils.unixmsToWeekSecs2(rec['time'])
@@ -54,7 +54,7 @@ def sortByDeviceTime(rec):
     return (rec[ind], ind)
 
 def getRecentAssignments(recSorted, yHatSorted, ind, nPts=10, dtMin=None):
-    """Get list trip assignments for device_id in recent window
+    """Get list of trip assignments for a device_id in recent window
 
     Inputs:
         recSorted - data recarray sorted by device_id and time
@@ -90,11 +90,14 @@ def smoothAssignments(rec, yHat, yTrue, **kwargs):
         try:
             mode = scipy.stats.mode(window)[0][0]
             newAssignments[ii] = mode
-            if((yTrue[sortInd][ii] == yHat[sortInd][ii]) & (mode == yTrue[sortInd][ii])):
+            if((yTrue[sortInd][ii] == yHat[sortInd][ii]) &
+               (mode == yTrue[sortInd][ii])):
                 print "keeping correct"
-            elif((yTrue[sortInd][ii] == yHat[sortInd][ii]) & (mode != yTrue[sortInd][ii])):
+            elif((yTrue[sortInd][ii] == yHat[sortInd][ii]) &
+                 (mode != yTrue[sortInd][ii])):
                 print "changing to incorrect"
-            elif((yTrue[sortInd][ii] != yHat[sortInd][ii]) & (mode == yTrue[sortInd][ii])):
+            elif((yTrue[sortInd][ii] != yHat[sortInd][ii]) &
+                 (mode == yTrue[sortInd][ii])):
                 print "changing to correct"
             else:
                 print "incorrect before and after"
@@ -103,6 +106,59 @@ def smoothAssignments(rec, yHat, yTrue, **kwargs):
             pass # leave original assignment
     newAssignments[sortInd] = newAssignments # return to original order
     return newAssignments
+
+def summarizeClassifications(yTrue, yPred, encoder):
+    """Print summary stats and show confusion matrices for class predictions
+
+    Inputs:
+        yTrue - array of true class labels
+        yPred - array of predict class labels (same length as yTrue)
+        encoder - LabelEncoder object to get trip IDs
+    """
+    nData = yTrue.size
+    nonNull = (yTrue!=0)
+    nNonNull = nonNull.nonzero()[0].size
+
+    serviceIDTrue, routeIDTrue, blockIDTrue, departureTimeTrue, directionTrue =\
+        utils.parseTripID(encoder.inverse_transform(yTrue))
+    serviceIDPred, routeIDPred, blockIDPred, departureTimePred, directionPred =\
+        utils.parseTripID(encoder.inverse_transform(yPred))
+
+    trueArrs = (yTrue, serviceIDTrue, routeIDTrue, blockIDTrue,
+                           departureTimeTrue, directionTrue)
+    predArrs = (yPred, serviceIDPred, routeIDPred, blockIDPred,
+                           departureTimePred, directionPred)
+    labels = ("Trip ID", "Service ID", "Route ID", "Block ID",
+              "Departure Time", "Direction")
+
+    print "{}/{} ({:0.1f}%) trips correct".format(
+        (yTrue == yPred).nonzero()[0].size, nData,
+        (yTrue == yPred).nonzero()[0].size*100/float(nData))
+    print "Predicted {} Null trips".format((yPred == 0).nonzero()[0].size)
+    print "Of above, {} were actual Null trips".format(
+        ((yPred == 0) & (yTrue == 0)).nonzero()[0].size)
+    print "There were actually {} Null trips".format(
+        (yTrue == 0).nonzero()[0].size)
+
+    for yt, yp, label in zip(trueArrs, predArrs, labels):
+        print "{}/{} ({:0.1f}%) {} correct".format(
+            (yt == yp).nonzero()[0].size, nData,
+            (yt == yp).nonzero()[0].size*100/float(nData),
+            label)
+
+    print "====Eliminating null trips from yTrue===="
+    for yt, yp, label in zip(trueArrs, predArrs, labels):
+        print "{}/{} ({:0.1f}%) {} correct".format(
+            (yt[nonNull] == yp[nonNull]).nonzero()[0].size, nNonNull,
+            (yt[nonNull] == yp[nonNull]).nonzero()[0].size*100/float(nNonNull),
+            label)
+
+    print "====Confusion matrices===="
+    for ytl, ypl, label in zip(trueArrs, predArrs, labels):
+        print label
+        yt, yp, encoder = encodeLabels(ytl, ypl)
+        cm = confusion_matrix(yt, yp)
+        plot.plotConfusionMatrix(np.log10(1+cm), title=label, showPlot=True)
 
 def classify(dbFileLoc):
     utils.printCurrentTime()
@@ -120,32 +176,21 @@ def classify(dbFileLoc):
     xTest = preprocess(testData)
     utils.printCurrentTime()
     print "encoding labels"
-    yTrain, yTest = encodeLabels(trainingData['trip_id'], testData['trip_id'])
+    yTrain, yTest, encoder = encodeLabels(trainingData['trip_id'], testData['trip_id'])
 
     utils.printCurrentTime()
-    print "training KNN model"
-    knn = KNeighborsClassifier(n_neighbors=10)
-    knn.fit(xTrain, yTrain)
+    print "training classifier"
+    clf = KNeighborsClassifier(n_neighbors=10)
+#    dtree = DecisionTreeClassifier(max_depth=10)
+    clf.fit(xTrain, yTrain)
 
     utils.printCurrentTime()
     print "predicting on test data"
-#    print "Score = {}".format(knn.score(xTest, yTest))
+    yHat = clf.predict(xTest)
+    utils.printCurrentTime()
+    summarizeClassifications(yTest, yHat, encoder)
 
-#    utils.printCurrentTime()
-#    print "getting predictions again"
-    yHat = knn.predict(xTest)
-    print "Score = {}".format(float(len((yHat == yTest).nonzero()[0]))/len(yTest))
-    utils.printCurrentTime()
-    print "getting confusion matrix"
-    cm = confusion_matrix(yTest, yHat)
-    utils.printCurrentTime()
-    print "plotting confusion matrix"
-    plot.plotConfusionMatrix(np.log10(1+cm), showPlot=True)
-    utils.printCurrentTime()
-    plot.plotHistograms((yTrain, yTest, yHat), ("red","green","blue"),
-                        ("Training", "Test (Actual)", "Test (Predicted)"),
-                        "Trips", log=True, showPlot=True)
     print "Done"
 
-
-    return (trainingData, testData, xTrain, xTest, yTrain, yTest, yHat, knn, cm)
+    return (trainingData, testData, xTrain, xTest, yTrain, yTest, yHat,
+            clf, cm, encoder)

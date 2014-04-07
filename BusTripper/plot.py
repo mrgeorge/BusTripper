@@ -47,13 +47,16 @@ def plotCoords(rec, plotFilename=None, showPlot=False, colorType="time"):
     if plotFilename is not None:
         plt.savefig(plotFilename)
 
-def plotConfusionMatrix(cm, plotFilename=None, showPlot=False):
+def plotConfusionMatrix(cm, title=None, plotFilename=None, showPlot=False):
     plt.clf()
     plt.imshow(cm, interpolation="nearest", origin="lower",
                cmap=matplotlib.cm.jet)
     plt.colorbar()
-    plt.xlabel("Predicted Trip")
-    plt.ylabel("True Trip")
+    plt.xlabel("Prediction")
+    plt.ylabel("Truth")
+
+    if title is not None:
+        plt.title(title)
 
     if showPlot:
         plt.show()

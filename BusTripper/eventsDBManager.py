@@ -239,7 +239,7 @@ class EventsDB(object):
         query = "SELECT {} {} FROM {} {} {}".format(qDist, qCols, tableName,
                                                     qWhere, qLim)
         # Execute query and return pandas DataFrame
-        df = pd.io.sql(query, self.conn)
+        df = pd.io.sql.frame_query(query, self.conn)
 
         # Convert time in unix ms to datetime object
         if "time" in df.columns:

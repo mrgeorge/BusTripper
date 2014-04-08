@@ -2,6 +2,7 @@ import types
 from collections import Iterable
 import re
 import numpy as np
+import pandas as pd
 import sqlite3
 
 class EventsDB(object):
@@ -234,15 +235,17 @@ class EventsDB(object):
         else:
             qLim = "LIMIT {}".format(limit)
 
-        # Combine clauses and execute query
+        # Combine clauses into query
         query = "SELECT {} {} FROM {} {} {}".format(qDist, qCols, tableName,
                                                     qWhere, qLim)
-        cur = self.conn.execute(query)
-        result = cur.fetchall()
+        # Execute query and return pandas DataFrame
+        df = pd.io.sql(query, self.conn)
 
-        rec = rowsToRec(result, cols)
-        
-        return rec
+        # Convert time in unix ms to datetime object
+        if "time" in df.columns:
+            df["time"] = df["time"].apply(pd.datetools.to_datetime,unit='ms')
+
+        return df
 
     def selectDataPrompt(self):
         """Prompt user for args to selectData"""
@@ -295,7 +298,9 @@ class EventsDB(object):
 
 
 def rowsToRec(rows, cols):
-    """Translate SQLite rows array into numpy recarray"""
+    """DEPRECATED - now using pandas dataframes instead.
+
+    Translate SQLite rows array into numpy recarray"""
     data = [np.array([row[str(col)] for row in rows]) for col in cols]
     fmt = [arr.dtype.str for arr in data]
     rec = np.recarray(data[0].size, formats = fmt, names = cols)
@@ -303,6 +308,3 @@ def rowsToRec(rows, cols):
         rec[col] = data[colNum]
 
     return rec
-
-        
-    

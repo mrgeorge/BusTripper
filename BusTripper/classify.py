@@ -53,6 +53,18 @@ def sortByDeviceTime(rec):
     ind = rec.argsort(order=("device_id","time"))
     return (rec[ind], ind)
 
+def getSequences(rec, nPts, dtMin=None):
+    """Aggregate date by device_id into chunks of length nPts or dtMin
+
+    Inputs:
+        rec - location data recarray
+        nPts - number of points per group (default = 10)
+        dtMin - if nPts is None, dtMin defines time window in minutes
+    Returns:
+        recGrouped - grouped location data recarray, sorted by device and time
+    """
+    pass
+
 def getRecentAssignments(recSorted, yHatSorted, ind, nPts=10, dtMin=None):
     """Get list of trip assignments for a device_id in recent window
 

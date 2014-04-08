@@ -1,16 +1,11 @@
 import numpy as np
+import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import confusion_matrix
 import scipy.stats
 
-try:
-    import geopy.distance
-    hasGeopy=True
-except ImportError:
-    hasGeopy=False
-    
 import eventsDBManager
 import utils
 import plot
@@ -19,9 +14,9 @@ import plot
 def getData(dbFileLoc, startDate, endDate):
     cols = ("time","longitude","latitude","trip_id","device_id")
     db = eventsDBManager.EventsDB(dbFileLoc)
-    rec = db.selectData(tableName="rlev",date=(startDate, endDate), cols=cols)
+    df = db.selectData(tableName="rlev",date=(startDate, endDate), cols=cols)
 
-    return rec
+    return df
 
 def encodeLabels(trainLabels, testLabels):
     """Convert trip_id strings to unique integer labels for classification"""
@@ -32,15 +27,15 @@ def encodeLabels(trainLabels, testLabels):
 
     return (yTrain, yTest, encoder)
 
-def preprocess(rec):
+def preprocess(df):
     """Rescale features and constuct design matrix for classifier"""
     utils.printCurrentTime()
     print "scaling time"
-    weekSecs = utils.unixmsToWeekSecs2(rec['time'])
+    weekSecs = utils.getWeekSecs(df['time'])
     timeScaled = utils.secsToMeters(weekSecs)
     utils.printCurrentTime()
     print "scaling distance"
-    latDist, lonDist = utils.latlonToMeters3(rec['latitude'], rec['longitude'])
+    latDist, lonDist = utils.latlonToMeters(df['latitude'], df['longitude'])
     xData = np.array([timeScaled, latDist, lonDist]).T
 
     return xData

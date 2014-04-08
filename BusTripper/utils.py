@@ -69,12 +69,12 @@ def parseTripID(tripID):
                             for trip in tripID])
         direction = np.array([trip[16:] if trip is not None else None
                             for trip in tripID])
-    elif trip is not None:
-        serviceID = trip[0:4]
-        routeID = trip[4:8]
-        blockID = trip[8:12]
-        departureTime = trip[12:16]
-        direction = trip[16:]
+    elif tripID is not None:
+        serviceID = tripID[0:4]
+        routeID = tripID[4:8]
+        blockID = tripID[8:12]
+        departureTime = tripID[12:16]
+        direction = tripID[16:]
     else:
         serviceID = routeID = blockID = departureTime = direction = None
     return (serviceID, routeID, blockID, departureTime, direction)

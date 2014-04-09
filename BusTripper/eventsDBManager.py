@@ -241,9 +241,10 @@ class EventsDB(object):
         # Execute query and return pandas DataFrame
         df = pd.io.sql.frame_query(query, self.conn)
 
-        # Convert time in unix ms to datetime object
+        # Convert time in unix ms to datetime object and set timezone
         if "time" in df.columns:
             df["time"] = df["time"].apply(pd.datetools.to_datetime,unit='ms')
+            df["time"] = df["time"].apply(lambda x: x.tz_localize("UTC").tz_convert("Europe/Madrid"))
 
         return df
 

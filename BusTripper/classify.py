@@ -36,7 +36,7 @@ def preprocess(df):
     utils.printCurrentTime()
     print "scaling distance"
     latDist, lonDist = utils.latlonToMeters(df['latitude'], df['longitude'])
-    xData = np.array([timeScaled, latDist, lonDist]).T
+    xData = np.array([timeScaled, latDist.values, lonDist.values]).T
 
     return xData
 
@@ -200,4 +200,4 @@ def classify(dbFileLoc):
     print "Done"
 
     return (trainingData, testData, xTrain, xTest, yTrain, yTest, yHat,
-            clf, cm, encoder)
+            clf, encoder)

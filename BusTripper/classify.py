@@ -48,38 +48,40 @@ def sortByDeviceTime(rec):
     ind = rec.argsort(order=("device_id","time"))
     return (rec[ind], ind)
 
-class Sequence(object):
-    def __init__(self, dateDevTrip, times, lats, lons):
-        self.date = dateDevTrip[0]
-        self.deviceID = dateDevTrip[1]
-        self.tripID = dateDevTrip[2]
-        self.times = times
-        self.lats = lats
-        self.lons = lons
-
 def getSequences(df, nPts=10):
     """Aggregate date by device_id into chunks of length nPts
 
     Inputs:
-        rec - location data recarray
+        df - pandas dataframe
         nPts - number of points per group (default = 10)
     Returns:
-        recGrouped - grouped location data recarray, sorted by device and time
+        seqDict - dict of lists of sequences indexed by date/deviceID/tripID
     """
+
+    # Create date column so we can group by day
     df['date'] = df['time'].apply(lambda x: x.date())
+
+    # Replace None with string so we can index even on missing tripIDs
+    df.replace({"trip_id":{None:"None"}}, inplace=True)
+
+    # Sort and group the data
     dfg = df.sort_index(by=("date","device_id","trip_id","time")).groupby(
         ("date","device_id","trip_id"))
-    seqBucket = []
+
+    # seqDict is a dict with 1 key for each date/deviceID/tripID combination
+    # each key corresponds to a list of sequences
+    #     and each sequence is a DataFrame of length nPts indexed by datetime
+    seqList = []
     for dateDevTrip, grp in dfg:
         nTot = len(grp)
         nSequences = np.floor_divide(nTot, nPts)
         sequences = np.empty(nSequences, dtype=object)
         for ss in range(nSequences):
-            times, lats, lons = [grp[col][ss*nPts:(ss+1)*nPts].values \
-                                 for col in ("time", "latitude", "longitude")]
-            sequences[ss] = Sequence(dateDevTrip, times, lats, lons)
-        seqBucket.append(sequences)
-    return seqBucket
+            sequences[ss] = grp[["time", "latitude", "longitude"]][ss*nPts:(ss+1)*nPts].set_index("time")
+        seqList.append(sequences)
+
+    seqDict = dict(zip(dfg.indices.keys(), seqList))
+    return seqDict
 
 def getRecentAssignments(recSorted, yHatSorted, ind, nPts=10):
     """Get list of trip assignments for a device_id in recent window

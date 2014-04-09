@@ -40,8 +40,8 @@ def getWeekday(dt):
     return dt.apply(pd.datetime.weekday)
 
 def getWeekSecs(dt):
-    # numpy datetime casting is much faster than operations on datetime objectsa
-    dtvals = dt.values
+    # numpy datetime casting is much faster than operations on datetime objects
+    dtvals = dt.values.astype("datetime64[ns]") # strip tz if necessary
     return ((dtvals - dtvals.astype("datetime64[W]")).astype("timedelta64[s]")
             - npWeekdayOffset).astype("int64") % weekInSecs
 

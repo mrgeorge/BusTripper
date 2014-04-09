@@ -48,7 +48,7 @@ def sortByDeviceTime(rec):
     ind = rec.argsort(order=("device_id","time"))
     return (rec[ind], ind)
 
-def getSequences(rec, nPts, dtMin=None):
+def getSequences(df, nPts, dtMin=None):
     """Aggregate date by device_id into chunks of length nPts or dtMin
 
     Inputs:
@@ -58,6 +58,12 @@ def getSequences(rec, nPts, dtMin=None):
     Returns:
         recGrouped - grouped location data recarray, sorted by device and time
     """
+    dfg = df.sort_index(by=("device_id","trip_id","time")).groupby(
+        ("device_id","trip_id"))
+    for devtrip, grp in dfg:
+        print devtrip
+        print grp
+        # slice by nPts or dtMin here, assign tripSegment
     pass
 
 def getRecentAssignments(recSorted, yHatSorted, ind, nPts=10, dtMin=None):
@@ -183,7 +189,8 @@ def classify(dbFileLoc):
     xTest = preprocess(testData)
     utils.printCurrentTime()
     print "encoding labels"
-    yTrain, yTest, encoder = encodeLabels(trainingData['trip_id'], testData['trip_id'])
+    yTrain, yTest, encoder = encodeLabels(trainingData['trip_id'],
+                                          testData['trip_id'])
 
     utils.printCurrentTime()
     print "training classifier"

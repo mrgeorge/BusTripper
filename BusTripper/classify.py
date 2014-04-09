@@ -40,14 +40,6 @@ def preprocess(df):
 
     return xData
 
-def sortByDeviceTime(rec):
-    """Sort data recarray by device_id and time
-
-    Sorting is not done in place and returns a new copy
-    """
-    ind = rec.argsort(order=("device_id","time"))
-    return (rec[ind], ind)
-
 def getSequences(df, nPts=10):
     """Aggregate date by device_id into chunks of length nPts
 
@@ -82,51 +74,6 @@ def getSequences(df, nPts=10):
 
     seqDict = dict(zip(dfg.indices.keys(), seqList))
     return seqDict
-
-def getRecentAssignments(recSorted, yHatSorted, ind, nPts=10):
-    """Get list of trip assignments for a device_id in recent window
-
-    Inputs:
-        recSorted - data recarray sorted by device_id and time
-        yHatSorted - trip assignments (encoded ids) sorted like recSorted
-        ind - index of recSorted to start from
-        nPts - number of trip assignments to return (default = 10)
-    Returns:
-        recarray of trip assignments for device_id in given window
-        (note: list may be shorter than nPts if insufficient data exists)
-    """
-
-    device_id = recSorted['device_id'][ind]
-    time = recSorted['time'][ind]
-    recWindow = recSorted[np.max([0,ind-nPts-1]):np.max([0,ind])]
-    yHatWindow = yHatSorted[np.max([0,ind-nPts-1]):np.max([0,ind])]
-    devMatch = (recWindow['device_id'] == device_id)
-    return yHatWindow[devMatch]
-
-def smoothAssignments(rec, yHat, yTrue, **kwargs):
-    sortInd = np.argsort(rec, order=("device_id","time"))
-    newAssignments = yHat[sortInd]
-    for ii in xrange(rec.size):
-        window = getRecentAssignments(rec[sortInd], yHat[sortInd], ii, **kwargs)
-        try:
-            mode = scipy.stats.mode(window)[0][0]
-            newAssignments[ii] = mode
-            if((yTrue[sortInd][ii] == yHat[sortInd][ii]) &
-               (mode == yTrue[sortInd][ii])):
-                print "keeping correct"
-            elif((yTrue[sortInd][ii] == yHat[sortInd][ii]) &
-                 (mode != yTrue[sortInd][ii])):
-                print "changing to incorrect"
-            elif((yTrue[sortInd][ii] != yHat[sortInd][ii]) &
-                 (mode == yTrue[sortInd][ii])):
-                print "changing to correct"
-            else:
-                print "incorrect before and after"
-        except UnboundLocalError:
-            print "insufficent data"
-            pass # leave original assignment
-    newAssignments[sortInd] = newAssignments # return to original order
-    return newAssignments
 
 def summarizeClassifications(yTrue, yPred, encoder):
     """Print summary stats and show confusion matrices for class predictions

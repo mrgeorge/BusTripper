@@ -49,52 +49,39 @@ def sortByDeviceTime(rec):
     return (rec[ind], ind)
 
 class Sequence(object):
-    def __init__(self, nPts, dtMin=None):
-        self.nPts=nPts
-        self.currPoint = 0
-        self.dtMin=dtMin
-        if nPts:
-            times = np.empty(nPts)
-            lats = np.empty(nPts)
-            lons = np.empty(nPts)
-        elif dtMin:
-            time = []
-            lat = []
-            lon = []
-        else:
-            raise ValueError(nPts, dtMin)
+    def __init__(self, dateDevTrip, times, lats, lons):
+        self.date = dateDevTrip[0]
+        self.deviceID = dateDevTrip[1]
+        self.tripID = dateDevTrip[2]
+        self.times = times
+        self.lats = lats
+        self.lons = lons
 
-    def addPoint(self, time, lat, lon):
-        if self.nPts:
-            times[currPoint] = time
-            lats[currPoint] = lat
-            lons[currPoint] = lon
-        else:
-            times.append(time)
-            lats.append(lat)
-            lons.append(lon)
-        currPoint += 1
-
-def getSequences(df, nPts, dtMin=None):
-    """Aggregate date by device_id into chunks of length nPts or dtMin
+def getSequences(df, nPts=10):
+    """Aggregate date by device_id into chunks of length nPts
 
     Inputs:
         rec - location data recarray
         nPts - number of points per group (default = 10)
-        dtMin - if nPts is None, dtMin defines time window in minutes
     Returns:
         recGrouped - grouped location data recarray, sorted by device and time
     """
     df['date'] = df['time'].apply(lambda x: x.date())
     dfg = df.sort_index(by=("date","device_id","trip_id","time")).groupby(
         ("date","device_id","trip_id"))
-    for devtrip, grp in dfg:
-        print devtrip
-        print grp
-        # slice by nPts or dtMin here, assign tripSegment
-    pass
+    seqBucket = []
+    for dateDevTrip, grp in dfg:
+        nTot = len(grp)
+        nSequences = np.floor_divide(nTot, nPts)
+        sequences = np.empty(nSequences, dtype=object)
+        for ss in range(nSequences):
+            times, lats, lons = [grp[col][ss*nPts:(ss+1)*nPts].values \
+                                 for col in ("time", "latitude", "longitude")]
+            sequences[ss] = Sequence(dateDevTrip, times, lats, lons)
+        seqBucket.append(sequences)
+    return seqBucket
 
-def getRecentAssignments(recSorted, yHatSorted, ind, nPts=10, dtMin=None):
+def getRecentAssignments(recSorted, yHatSorted, ind, nPts=10):
     """Get list of trip assignments for a device_id in recent window
 
     Inputs:
@@ -102,7 +89,6 @@ def getRecentAssignments(recSorted, yHatSorted, ind, nPts=10, dtMin=None):
         yHatSorted - trip assignments (encoded ids) sorted like recSorted
         ind - index of recSorted to start from
         nPts - number of trip assignments to return (default = 10)
-        dtMin - if nPts is None, dtMin defines time window to return in minutes
     Returns:
         recarray of trip assignments for device_id in given window
         (note: list may be shorter than nPts if insufficient data exists)
@@ -110,18 +96,10 @@ def getRecentAssignments(recSorted, yHatSorted, ind, nPts=10, dtMin=None):
 
     device_id = recSorted['device_id'][ind]
     time = recSorted['time'][ind]
-
-    if nPts is not None:
-        recWindow = recSorted[np.max([0,ind-nPts-1]):np.max([0,ind])]
-        yHatWindow = yHatSorted[np.max([0,ind-nPts-1]):np.max([0,ind])]
-        devMatch = (recWindow['device_id'] == device_id)
-        return yHatWindow[devMatch]
-    elif dtMin is not None:
-        window = ((recSorted['time'][:ind] > time - dtMin*60*1000) &
-                  (recSorted['device_id'] == device_id))
-        return yHatSorted[window]
-    else:
-        raise ValueError((nPts, dtMin))
+    recWindow = recSorted[np.max([0,ind-nPts-1]):np.max([0,ind])]
+    yHatWindow = yHatSorted[np.max([0,ind-nPts-1]):np.max([0,ind])]
+    devMatch = (recWindow['device_id'] == device_id)
+    return yHatWindow[devMatch]
 
 def smoothAssignments(rec, yHat, yTrue, **kwargs):
     sortInd = np.argsort(rec, order=("device_id","time"))

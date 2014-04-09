@@ -48,6 +48,33 @@ def sortByDeviceTime(rec):
     ind = rec.argsort(order=("device_id","time"))
     return (rec[ind], ind)
 
+class Sequence(object):
+    def __init__(self, nPts, dtMin=None):
+        self.nPts=nPts
+        self.currPoint = 0
+        self.dtMin=dtMin
+        if nPts:
+            times = np.empty(nPts)
+            lats = np.empty(nPts)
+            lons = np.empty(nPts)
+        elif dtMin:
+            time = []
+            lat = []
+            lon = []
+        else:
+            raise ValueError(nPts, dtMin)
+
+    def addPoint(self, time, lat, lon):
+        if self.nPts:
+            times[currPoint] = time
+            lats[currPoint] = lat
+            lons[currPoint] = lon
+        else:
+            times.append(time)
+            lats.append(lat)
+            lons.append(lon)
+        currPoint += 1
+
 def getSequences(df, nPts, dtMin=None):
     """Aggregate date by device_id into chunks of length nPts or dtMin
 
@@ -58,8 +85,9 @@ def getSequences(df, nPts, dtMin=None):
     Returns:
         recGrouped - grouped location data recarray, sorted by device and time
     """
-    dfg = df.sort_index(by=("device_id","trip_id","time")).groupby(
-        ("device_id","trip_id"))
+    df['date'] = df['time'].apply(lambda x: x.date())
+    dfg = df.sort_index(by=("date","device_id","trip_id","time")).groupby(
+        ("date","device_id","trip_id"))
     for devtrip, grp in dfg:
         print devtrip
         print grp

@@ -10,6 +10,9 @@ import logging
 import time
 import os
 from tripClassifier import TripClassifier
+import sqlite3
+#import rawLocation
+
 
 class Predictor(object):
     '''
@@ -79,6 +82,7 @@ if __name__ == "__main__":
                         required=True,
                         metavar="GTFS_DB_FILE",
                         help="path to GTFS data (in sqlite3 db format)")
+    #parser.add_argument("-e", "-events-db-file", dest = "events_db")
     
     args = parser.parse_args()
         
@@ -125,4 +129,14 @@ if __name__ == "__main__":
     #         locMan.join()
     #         break
 
+
     #Pseudocode: for each raw location in the events DB, update
+    conn = sqlite3.connect(dbfileloc)
+    statement = """ SELECT * from raw_loc_subset;"""
+    cursor = conn.execute(statement)
+    for row in cursor:
+        rawLoc = rawLocation(row[0],row[1],row[2],row[3],row[4],row[5],row[6],row[7], row[8], row[9], row[10])
+        self.newRawLocation(rawLoc)
+    
+
+

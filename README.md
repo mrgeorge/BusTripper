@@ -17,7 +17,5 @@ External Dependencies
 
 BusTripper currently uses the following packages:
 
-* python, and common libaries like numpy, matplotlib, sklearn, re, and
+* python, and common libaries like numpy, pandas, sklearn, matplotlib, re, and
   sqlite3
-
-* [geopy](https://github.com/geopy/geopy) Python GIS package

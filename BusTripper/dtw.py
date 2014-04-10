@@ -2,15 +2,21 @@ import numpy as np
 import rpy2.robjects.numpy2ri
 from rpy2.robjects.packages import importr
 
+import utils
+
 # Set up our R namespaces
 R = rpy2.robjects.r
 DTW = importr('dtw') # requires package installation
+rpy2.robjects.numpy2ri.activate() # for converting np arrays to R
 
-
-def DTWCost(val1, val2):
-    """Euclidean distance - could expand this for other cost options"""
-    diff = np.array([val2-val1])
-    return np.sqrt(diff.dot(diff)) # l-2 norm, faster than np.linalg.norm
+def DTWCost(val1, val2, distType="euclidean"):
+    if distType == "euclidean":
+        diff = np.array([val2 - val1]).flatten()
+        return np.sqrt(diff.dot(diff)) # l-2 norm, faster than np.linalg.norm
+    elif distType == "greatcircle":
+        return utils.metersBetweenLatLonPair(val1[0], val1[1], val2[0], val2[1])
+    else:
+        raise ValueError(distType)
 
 def DTWDistance(arr1, arr2):
     """Wikipedia implementation of basic DTW"""
@@ -29,7 +35,6 @@ def DTWDistance(arr1, arr2):
                                          DTW[ii  , jj-1],
                                          DTW[ii-1, jj-1]])
     return DTW[nRows,nCols]
-
 
 def RDTW(arr1, arr2):
     """Call R's DTW and return distance"""

@@ -1,18 +1,15 @@
 import numpy as np
-import datetime
+import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import confusion_matrix
+import scipy.stats
 
-try:
-    import geopy.distance
-    hasGeopy=True
-except ImportError:
-    hasGeopy=False
-    
 import eventsDBManager
 import utils
 import plot
+import dtw
 
 # two versions of datetime functions follow
 # first uses datetime objects which aren't vectorized so are slow
@@ -116,36 +113,153 @@ def latlonToMeters3(latitude, longitude):
     return (latDist, lonDist)
 
 def getData(dbFileLoc, startDate, endDate):
-    cols = ("time","longitude","latitude","trip_id")
+    cols = ("time","longitude","latitude","trip_id","device_id")
     db = eventsDBManager.EventsDB(dbFileLoc)
-    rec = db.selectData(tableName="rlev",date=(startDate, endDate), cols=cols)
+    df = db.selectData(tableName="rlev",date=(startDate, endDate), cols=cols)
 
-    return rec
+    return df
 
 def encodeLabels(trainLabels, testLabels):
-    # convert trip_id strings to unique integers for classification
-    le = LabelEncoder()
-    le.fit(np.concatenate((trainLabels,testLabels)))
-    yTrain = le.transform(trainLabels)
-    yTest = le.transform(testLabels)
+    """Convert trip_id strings to unique integer labels for classification"""
+    encoder = LabelEncoder()
+    encoder.fit(np.concatenate((trainLabels,testLabels)))
+    yTrain = encoder.transform(trainLabels)
+    yTest = encoder.transform(testLabels)
 
-    return (yTrain, yTest)
+    return (yTrain, yTest, encoder)
 
-def preprocess(rec):
+def preprocess(df, nPts=1):
+    """Rescale features and constuct design matrix for classifier"""
 
-    # constuct design matrix
-    utils.printCurrentTime()
-    print "scaling time"
-    weekSecs = unixmsToWeekSecs2(rec['time'])
-    timeScaled = secsToMeters(weekSecs)
     utils.printCurrentTime()
     print "scaling distance"
-    latDist, lonDist = latlonToMeters3(rec['latitude'], rec['longitude'])
-    xData = np.array([timeScaled, latDist, lonDist]).T
+    df["latDist"], df["lonDist"] = utils.latlonToMeters(df["latitude"], df["longitude"])
 
-    return xData
+    utils.printCurrentTime()
+    if nPts > 1:
+        print "Sequencing data"
+        seqFrame = getSequences(df, nPts=nPts)
+        xData = seqFrame['sequence'] # nested frames
+        labels = seqFrame['label'].apply(lambda x: x[2]) # list of tripIDs
 
-def classify(dbFileLoc):
+    else:
+        print "scaling time"
+        df["weekSecs"] = utils.getWeekSecs(df["time"])
+        df["timeScaled"] = utils.secsToMeters(df["weekSecs"])
+        xData = df[["timeScaled", "latDist", "lonDist"]]
+        labels = df["trip_id"]
+
+    return (xData, labels)
+
+def getSequences(df, nPts=10):
+    """Aggregate date by date, device, and trip into chunks of length nPts
+
+    Inputs:
+        df - pandas dataframe
+        nPts - number of points per group (default = 10)
+    Returns:
+        seqFrame - dataframe with labels and sequences
+            labels are date/deviceID/tripID tuples
+            sequences are dataframes with cols = time/lat/lon and nPts rows
+    """
+
+    # Create date column so we can group by day
+    df['date'] = df['time'].apply(lambda x: x.date())
+
+    # Replace None with string so we can index even on missing tripIDs
+    df.replace({"trip_id":{None:"None"}}, inplace=True)
+
+    # Sort and group the data
+    dfg = df.sort_index(by=("date","device_id","trip_id","time")).groupby(
+        ("date","device_id","trip_id"))
+
+    # Data structure in this section is a bit complicated:
+    # One ddtSequence is a dataframe of length nPts with lat/lon time series
+    # ddtSequences is an array of these frames for one date/device/trip group
+    # ddtFrame is a dataframe with ddtSequences and a copy of ddt label for each
+    # ddtFrames is a list of these frames for each ddt
+    # seqFrame is the dataframe concatenation of the above frames
+    #     each row has a ddt label and a ddtSequence frame
+    ddtFrames = []
+    for dateDevTrip, grp in dfg:
+        nTot = len(grp)
+        nSequences = np.floor_divide(nTot, nPts)
+        ddtSequences = np.empty(nSequences, dtype=object)
+        for ss in range(nSequences):
+            ddtSequences[ss] = grp[["time", "latitude", "longitude"]][ss*nPts:(ss+1)*nPts].set_index("time")
+        ddtFrame = pd.DataFrame(data = {"label":[dateDevTrip for ii in range(nSequences)], "sequence":ddtSequences})
+        ddtFrames.append(ddtFrame)
+
+    seqFrame = pd.concat(ddtFrames, ignore_index=True)
+
+    return seqFrame
+
+def summarizeClassifications(yTrue, yPred, encoder):
+    """Print summary stats and show confusion matrices for class predictions
+
+    Inputs:
+        yTrue - array of true class labels
+        yPred - array of predict class labels (same length as yTrue)
+        encoder - LabelEncoder object to get trip IDs
+    """
+    nData = yTrue.size
+    nonNull = (yTrue!=0)
+    nNonNull = nonNull.nonzero()[0].size
+
+    serviceIDTrue, routeIDTrue, blockIDTrue, departureTimeTrue, directionTrue =\
+        utils.parseTripID(encoder.inverse_transform(yTrue))
+    serviceIDPred, routeIDPred, blockIDPred, departureTimePred, directionPred =\
+        utils.parseTripID(encoder.inverse_transform(yPred))
+
+    trueArrs = (yTrue, serviceIDTrue, routeIDTrue, blockIDTrue,
+                           departureTimeTrue, directionTrue)
+    predArrs = (yPred, serviceIDPred, routeIDPred, blockIDPred,
+                           departureTimePred, directionPred)
+    labels = ("Trip ID", "Service ID", "Route ID", "Block ID",
+              "Departure Time", "Direction")
+
+    print "{}/{} ({:0.1f}%) trips correct".format(
+        (yTrue == yPred).nonzero()[0].size, nData,
+        (yTrue == yPred).nonzero()[0].size*100/float(nData))
+    print "Predicted {} Null trips".format((yPred == 0).nonzero()[0].size)
+    print "Of above, {} were actual Null trips".format(
+        ((yPred == 0) & (yTrue == 0)).nonzero()[0].size)
+    print "There were actually {} Null trips".format(
+        (yTrue == 0).nonzero()[0].size)
+
+    for yt, yp, label in zip(trueArrs, predArrs, labels):
+        print "{}/{} ({:0.1f}%) {} correct".format(
+            (yt == yp).nonzero()[0].size, nData,
+            (yt == yp).nonzero()[0].size*100/float(nData),
+            label)
+
+    print "====Eliminating null trips from yTrue===="
+    for yt, yp, label in zip(trueArrs, predArrs, labels):
+        print "{}/{} ({:0.1f}%) {} correct".format(
+            (yt[nonNull] == yp[nonNull]).nonzero()[0].size, nNonNull,
+            (yt[nonNull] == yp[nonNull]).nonzero()[0].size*100/float(nNonNull),
+            label)
+
+    print "====Confusion matrices===="
+    for ytl, ypl, label in zip(trueArrs, predArrs, labels):
+        print label
+        yt, yp, encoder = encodeLabels(ytl, ypl)
+        cm = confusion_matrix(yt, yp)
+        plot.plotConfusionMatrix(np.log10(1+cm), title=label, showPlot=True)
+
+def dtwClassifier(xTrain, yTrain, xTest):
+
+    yTest = np.empty(xTest.size, dtype='int64')
+    for ii, test in enumerate(xTest):
+        print "{} / {}".format(ii, xTest.size)
+        minDist = np.inf
+        for train,label in zip(xTrain, yTrain):
+            if dtw.RDTW(test.values, train.values) < minDist:
+                yTest[ii] = label
+
+    return yTest
+
+def classify(dbFileLoc, nPts=1):
     utils.printCurrentTime()
     print "reading training data"
     trainingData = getData(dbFileLoc, '2013-12-01', '2014-01-07')
@@ -155,38 +269,32 @@ def classify(dbFileLoc):
 
     utils.printCurrentTime()
     print "preprocessing training data"
-    xTrain = preprocess(trainingData)
+    xTrain, labelsTrain = preprocess(trainingData, nPts=nPts)
     utils.printCurrentTime()
     print "preprocessing test data"
-    xTest = preprocess(testData)
+    xTest, labelsTest = preprocess(testData, nPts=nPts)
     utils.printCurrentTime()
     print "encoding labels"
-    yTrain, yTest = encodeLabels(trainingData['trip_id'], testData['trip_id'])
+    yTrain, yTest, encoder = encodeLabels(labelsTrain, labelsTest)
 
     utils.printCurrentTime()
-    print "training KNN model"
-    knn = KNeighborsClassifier(n_neighbors=10)
-    knn.fit(xTrain, yTrain)
+    if nPts == 1:
+        print "training classifier"
+        clf = KNeighborsClassifier(n_neighbors=10)
+        # clf = DecisionTreeClassifier(max_depth=10)
+        clf.fit(xTrain, yTrain)
+
+        utils.printCurrentTime()
+        print "predicting on test data"
+        yHat = clf.predict(xTest)
+    else:
+        print "predicting with DTW on test data"
+        yHat = dtwClassifier(xTrain, yTrain, xTest)
 
     utils.printCurrentTime()
-    print "predicting on test data"
-#    print "Score = {}".format(knn.score(xTest, yTest))
+    summarizeClassifications(yTest, yHat, encoder)
 
-#    utils.printCurrentTime()
-#    print "getting predictions again"
-    yHat = knn.predict(xTest)
-    print "Score = {}".format(float(len((yHat == yTest).nonzero()[0]))/len(yTest))
-    utils.printCurrentTime()
-    print "getting confusion matrix"
-    cm = confusion_matrix(yTest, yHat)
-    utils.printCurrentTime()
-    print "plotting confusion matrix"
-    plot.plotConfusionMatrix(np.log10(1+cm), showPlot=True)
-    utils.printCurrentTime()
-    plot.plotHistograms((yTrain, yTest, yHat), ("red","green","blue"),
-                        ("Training", "Test (Actual)", "Test (Predicted)"),
-                        "Trips", log=True, showPlot=True)
     print "Done"
 
-
-    return (trainingData, testData, xTrain, xTest, yTrain, yTest, yHat, knn, cm)
+    return (trainingData, testData, xTrain, xTest, yTrain, yTest, yHat,
+            clf, encoder)

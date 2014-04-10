@@ -75,7 +75,7 @@ def unixmsToWeekSecs2(unixms):
     return (dts - dts.astype('datetime64[W]').astype('datetime64[s]')).astype('timedelta64[s]')
 
 def secsToMeters(secs, speed=10.):
-    """Convert time in seconds to distaince in meters given avg speed in m/s)"""
+    """Convert time in seconds to distance in meters given avg speed in m/s)"""
     return speed * secs.astype('float64')
 
 # three versions of latlonToMeters follow:

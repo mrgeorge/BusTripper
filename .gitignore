@@ -1,4 +1,5 @@
 *.pyc
 *.login
 /data*
-/plots*
+/plots*datda
+dbus_events.db

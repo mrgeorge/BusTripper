@@ -11,6 +11,7 @@ import time
 from pygtfs.projectedLocation import createJsonFromProjLoc
 import json
 import pprint
+from __future__ import division
 
 class AssignedTrips(object):
     '''
@@ -59,6 +60,23 @@ class AssignedTrips(object):
                                   % (deviceId, assignedBlock))
                 badList.append(deviceId)
         return badList
+
+    def getAccuracy(self):
+        badList = getInaccurateAssignedDeviceList()
+        goodList = []
+        for deviceID in self.assignedTripDict:
+            assignedBlock = self.assignedTripDict[deviceId].block
+
+            candidateBlocks = [x['block'] for x in 
+                               self.tripDistances.candidateBlocks[deviceId]]
+
+            if assignedBlock in candidateBlocks:
+                goodList.append(deviceId)
+        accuracy = len(goodList) / (len(goodList) + len(badList))
+        print accuracy
+        return accuracy
+
+
     
     
     def getBacktrackingDeviceList(self):

@@ -51,7 +51,7 @@ def preprocess(df, nPts=1):
     return (xData, labels)
 
 def getSequences(df, nPts=10):
-    """Aggregate date by device_id into chunks of length nPts
+    """Aggregate date by date, device, and trip into chunks of length nPts
 
     Inputs:
         df - pandas dataframe
@@ -72,9 +72,13 @@ def getSequences(df, nPts=10):
     dfg = df.sort_index(by=("date","device_id","trip_id","time")).groupby(
         ("date","device_id","trip_id"))
 
-    # seqDict is a dict with 1 key for each date/deviceID/tripID combination
-    # each key corresponds to a list of sequences
-    #     and each sequence is a DataFrame of length nPts indexed by datetime
+    # Data structure in this section is a bit complicated:
+    # One ddtSequence is a dataframe of length nPts with lat/lon time series
+    # ddtSequences is an array of these frames for one date/device/trip group
+    # ddtFrame is a dataframe with ddtSequences and a copy of ddt label for each
+    # ddtFrames is a list of these frames for each ddt
+    # seqFrame is the dataframe concatenation of the above frames
+    #     each row has a ddt label and a ddtSequence frame
     ddtFrames = []
     for dateDevTrip, grp in dfg:
         nTot = len(grp)

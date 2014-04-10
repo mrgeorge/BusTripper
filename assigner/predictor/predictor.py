@@ -115,12 +115,14 @@ if __name__ == "__main__":
     # is because the messaging solution I was using was event-based and I was
     # explicitly handling the threading. There's no real need for you to do
     # this for your project.
-    locMan.start()
-    while True:
-        time.sleep(0.01)
-        currTime = int(time.time() - tStart)
-        if (currTime > prevTime):
-            prevTime = currTime
-        if (currTime > tStart + tLim):
-            locMan.join()
-            break
+    # locMan.start()
+    # while True:
+    #     time.sleep(0.01)
+    #     currTime = int(time.time() - tStart)
+    #     if (currTime > prevTime):
+    #         prevTime = currTime
+    #     if (currTime > tStart + tLim):
+    #         locMan.join()
+    #         break
+
+    #Pseudocode: for each raw location in the events DB, update

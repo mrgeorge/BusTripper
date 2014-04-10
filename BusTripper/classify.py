@@ -27,18 +27,28 @@ def encodeLabels(trainLabels, testLabels):
 
     return (yTrain, yTest, encoder)
 
-def preprocess(df):
+def preprocess(df, nPts=1):
     """Rescale features and constuct design matrix for classifier"""
-    utils.printCurrentTime()
-    print "scaling time"
-    weekSecs = utils.getWeekSecs(df['time'])
-    timeScaled = utils.secsToMeters(weekSecs)
+
     utils.printCurrentTime()
     print "scaling distance"
-    latDist, lonDist = utils.latlonToMeters(df['latitude'], df['longitude'])
-    xData = np.array([timeScaled, latDist.values, lonDist.values]).T
+    df["latDist"], df["lonDist"] = utils.latlonToMeters(df["latitude"], df["longitude"])
 
-    return xData
+    utils.printCurrentTime()
+    if nPts > 1:
+        print "Sequencing data"
+        seqFrame = getSequences(df, nPts=nPts)
+        xData = seqFrame['sequence'] # nested frames
+        labels = seqFrame['label'].apply(lambda x: x[2]) # list of tripIDs
+
+    else:
+        print "scaling time"
+        df["weekSecs"] = utils.getWeekSecs(df["time"])
+        df["timeScaled"] = utils.secsToMeters(df["weekSecs"])
+        xData = df[["timeScaled", "latDist", "lonDist"]]
+        labels = df["trip_id"]
+
+    return (xData, labels)
 
 def getSequences(df, nPts=10):
     """Aggregate date by device_id into chunks of length nPts
@@ -47,7 +57,9 @@ def getSequences(df, nPts=10):
         df - pandas dataframe
         nPts - number of points per group (default = 10)
     Returns:
-        seqDict - dict of lists of sequences indexed by date/deviceID/tripID
+        seqFrame - dataframe with labels and sequences
+            labels are date/deviceID/tripID tuples
+            sequences are dataframes with cols = time/lat/lon and nPts rows
     """
 
     # Create date column so we can group by day
@@ -63,17 +75,19 @@ def getSequences(df, nPts=10):
     # seqDict is a dict with 1 key for each date/deviceID/tripID combination
     # each key corresponds to a list of sequences
     #     and each sequence is a DataFrame of length nPts indexed by datetime
-    seqList = []
+    ddtFrames = []
     for dateDevTrip, grp in dfg:
         nTot = len(grp)
         nSequences = np.floor_divide(nTot, nPts)
-        sequences = np.empty(nSequences, dtype=object)
+        ddtSequences = np.empty(nSequences, dtype=object)
         for ss in range(nSequences):
-            sequences[ss] = grp[["time", "latitude", "longitude"]][ss*nPts:(ss+1)*nPts].set_index("time")
-        seqList.append(sequences)
+            ddtSequences[ss] = grp[["time", "latitude", "longitude"]][ss*nPts:(ss+1)*nPts].set_index("time")
+        ddtFrame = pd.DataFrame(data = {"label":[dateDevTrip for ii in range(nSequences)], "sequence":ddtSequences})
+        ddtFrames.append(ddtFrame)
 
-    seqDict = dict(zip(dfg.indices.keys(), seqList))
-    return seqDict
+    seqFrame = pd.concat(ddtFrames)
+
+    return seqFrame
 
 def summarizeClassifications(yTrue, yPred, encoder):
     """Print summary stats and show confusion matrices for class predictions
@@ -128,7 +142,7 @@ def summarizeClassifications(yTrue, yPred, encoder):
         cm = confusion_matrix(yt, yp)
         plot.plotConfusionMatrix(np.log10(1+cm), title=label, showPlot=True)
 
-def classify(dbFileLoc):
+def classify(dbFileLoc, nPts=1):
     utils.printCurrentTime()
     print "reading training data"
     trainingData = getData(dbFileLoc, '2013-12-01', '2014-01-07')
@@ -138,14 +152,13 @@ def classify(dbFileLoc):
 
     utils.printCurrentTime()
     print "preprocessing training data"
-    xTrain = preprocess(trainingData)
+    xTrain, labelsTrain = preprocess(trainingData, nPts=nPts)
     utils.printCurrentTime()
     print "preprocessing test data"
-    xTest = preprocess(testData)
+    xTest, labelsTest = preprocess(testData, nPts=nPts)
     utils.printCurrentTime()
     print "encoding labels"
-    yTrain, yTest, encoder = encodeLabels(trainingData['trip_id'],
-                                          testData['trip_id'])
+    yTrain, yTest, encoder = encodeLabels(labelsTrain, labelsTest)
 
     utils.printCurrentTime()
     print "training classifier"

@@ -89,7 +89,7 @@ def getSequences(df, nPts=10):
         ddtFrame = pd.DataFrame(data = {"label":[dateDevTrip for ii in range(nSequences)], "sequence":ddtSequences})
         ddtFrames.append(ddtFrame)
 
-    seqFrame = pd.concat(ddtFrames)
+    seqFrame = pd.concat(ddtFrames, ignore_index=True)
 
     return seqFrame
 

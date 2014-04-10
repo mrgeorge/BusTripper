@@ -9,7 +9,7 @@ import scipy.stats
 import eventsDBManager
 import utils
 import plot
-
+import dtw
 
 def getData(dbFileLoc, startDate, endDate):
     cols = ("time","longitude","latitude","trip_id","device_id")
@@ -146,6 +146,18 @@ def summarizeClassifications(yTrue, yPred, encoder):
         cm = confusion_matrix(yt, yp)
         plot.plotConfusionMatrix(np.log10(1+cm), title=label, showPlot=True)
 
+def dtwClassifier(xTrain, yTrain, xTest):
+
+    yTest = np.empty(xTest.size, dtype='int64')
+    for ii, test in enumerate(xTest):
+        print "{} / {}".format(ii, xTest.size)
+        minDist = np.inf
+        for train,label in zip(xTrain, yTrain):
+            if dtw.RDTW(test.values, train.values) < minDist:
+                yTest[ii] = label
+
+    return yTest
+
 def classify(dbFileLoc, nPts=1):
     utils.printCurrentTime()
     print "reading training data"
@@ -165,14 +177,19 @@ def classify(dbFileLoc, nPts=1):
     yTrain, yTest, encoder = encodeLabels(labelsTrain, labelsTest)
 
     utils.printCurrentTime()
-    print "training classifier"
-    clf = KNeighborsClassifier(n_neighbors=10)
-#    dtree = DecisionTreeClassifier(max_depth=10)
-    clf.fit(xTrain, yTrain)
+    if nPts == 1:
+        print "training classifier"
+        clf = KNeighborsClassifier(n_neighbors=10)
+        # clf = DecisionTreeClassifier(max_depth=10)
+        clf.fit(xTrain, yTrain)
 
-    utils.printCurrentTime()
-    print "predicting on test data"
-    yHat = clf.predict(xTest)
+        utils.printCurrentTime()
+        print "predicting on test data"
+        yHat = clf.predict(xTest)
+    else:
+        print "predicting with DTW on test data"
+        yHat = dtwClassifier(xTrain, yTrain, xTest)
+
     utils.printCurrentTime()
     summarizeClassifications(yTest, yHat, encoder)
 

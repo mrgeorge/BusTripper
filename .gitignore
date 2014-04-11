@@ -2,3 +2,4 @@
 *.login
 /data*
 /plots*
+dbus_events.db

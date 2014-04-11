@@ -46,7 +46,7 @@ def getWeekSecs(dt):
             - npWeekdayOffset).astype("int64") % weekInSecs
 
 def secsToMeters(secs, speed=10.):
-    """Convert time in seconds to distaince in meters given avg speed in m/s)"""
+    """Convert time in seconds to distance in meters given avg speed in m/s)"""
     return speed * secs.astype('float64')
 
 def latlonToMeters(latitude, longitude):

@@ -68,7 +68,7 @@ class AssignedTrips(object):
         for deviceID in self.assignedTripDict:
             assignedBlock = self.assignedTripDict[deviceId].block
 
-            candidateBlocks = [x['block'] for x in 
+            candidateBlocks = [x['block'] for x in
                                self.tripDistances.candidateBlocks[deviceId]]
 
             if assignedBlock in candidateBlocks:

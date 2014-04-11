@@ -9,7 +9,12 @@ import scipy.stats
 import eventsDBManager
 import utils
 import plot
-import dtw
+
+try:
+    import dtw
+    hasDTW = True
+except:
+    hasDTW = False
 
 def getData(dbFileLoc, startDate, endDate):
     cols = ("time","longitude","latitude","trip_id","device_id")
@@ -186,9 +191,12 @@ def classify(dbFileLoc, nPts=1):
         utils.printCurrentTime()
         print "predicting on test data"
         yHat = clf.predict(xTest)
-    else:
+    elif hasDTW:
         print "predicting with DTW on test data"
         yHat = dtwClassifier(xTrain, yTrain, xTest)
+    else:
+        print "DTW module not available, can't use nPts > 1"
+        raise ImportError(dtw)
 
     utils.printCurrentTime()
     summarizeClassifications(yTest, yHat, encoder)

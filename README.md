@@ -19,3 +19,7 @@ BusTripper currently uses the following packages:
 
 * python, and common libaries like numpy, pandas, sklearn, matplotlib, re, and
   sqlite3
+
+* [R](http://www.r-project.org/), the
+  [DTW package](http://dtw.r-forge.r-project.org/) for R, and the
+  python wrapper [rpy2](http://rpy.sourceforge.net/rpy2.html)

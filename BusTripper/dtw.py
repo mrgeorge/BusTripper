@@ -39,4 +39,6 @@ def DTWDistance(arr1, arr2):
 def RDTW(arr1, arr2):
     """Call R's DTW and return distance"""
     # Calculate the alignment vector and corresponding distance
-    return R.dtw(arr1, arr2, keep=True).rx('distance')[0][0]
+    return R.dtw(arr1, arr2, distance_only=True, open_begin=True,open_end=True,
+                 step_pattern=R('rabinerJuangStepPattern(3, "c", TRUE)')
+                 ).rx('distance')[0][0]

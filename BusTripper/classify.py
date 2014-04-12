@@ -96,14 +96,15 @@ def getSequences(df, nPts=10):
     for dateDevTrip, grp in dfg:
         nTot = len(grp)
         if nPts < 1:
-            nPts = nTot
+            seqLength = nTot
             nSequences = 1
         else:
-            nSequences = np.floor_divide(nTot, nPts)
+            seqLength = nPts
+            nSequences = np.floor_divide(nTot, seqLength)
 
         ddtSequences = np.empty(nSequences, dtype=object)
         for ss in range(nSequences):
-            ddtSequences[ss] = grp[["time", "latitude", "longitude"]][ss*nPts:(ss+1)*nPts].set_index("time")
+            ddtSequences[ss] = grp[["time", "latitude", "longitude"]][ss*seqLength:(ss+1)*seqLength].set_index("time")
         ddtFrame = pd.DataFrame(data = {"label":[dateDevTrip for ii in range(nSequences)], "sequence":ddtSequences})
         ddtFrames.append(ddtFrame)
 

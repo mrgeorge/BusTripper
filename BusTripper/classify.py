@@ -33,14 +33,21 @@ def encodeLabels(trainLabels, testLabels):
     return (yTrain, yTest, encoder)
 
 def preprocess(df, nPts=1):
-    """Rescale features and constuct design matrix for classifier"""
+    """Rescale features and constuct design matrix for classifier
+
+    Inputs:
+        df - pandas data frame
+        nPts - int length of sequences to use
+               if nPts==1, asssume features are rescaled location,time
+               else assume features are time series and group the data
+    """
 
     utils.printCurrentTime()
     print "scaling distance"
     df["latDist"], df["lonDist"] = utils.latlonToMeters(df["latitude"], df["longitude"])
 
     utils.printCurrentTime()
-    if nPts > 1:
+    if nPts != 1:
         print "Sequencing data"
         seqFrame = getSequences(df, nPts=nPts)
         xData = seqFrame['sequence'] # nested frames
@@ -60,7 +67,8 @@ def getSequences(df, nPts=10):
 
     Inputs:
         df - pandas dataframe
-        nPts - number of points per group (default = 10)
+        nPts - number of points per sequence (default = 10)
+               if nPts<1, group by trip (i.e. sequence length = trip length)
     Returns:
         seqFrame - dataframe with labels and sequences
             labels are date/deviceID/tripID tuples
@@ -87,7 +95,12 @@ def getSequences(df, nPts=10):
     ddtFrames = []
     for dateDevTrip, grp in dfg:
         nTot = len(grp)
-        nSequences = np.floor_divide(nTot, nPts)
+        if nPts < 1:
+            nPts = nTot
+            nSequences = 1
+        else:
+            nSequences = np.floor_divide(nTot, nPts)
+
         ddtSequences = np.empty(nSequences, dtype=object)
         for ss in range(nSequences):
             ddtSequences[ss] = grp[["time", "latitude", "longitude"]][ss*nPts:(ss+1)*nPts].set_index("time")
@@ -173,9 +186,12 @@ def classify(dbFileLoc, nPts=1):
 
     utils.printCurrentTime()
     print "preprocessing training data"
-    xTrain, labelsTrain = preprocess(trainingData, nPts=nPts)
+    # if nPts == 1, pass that value
+    # else pass nPts=0 so training set is split by trip
+    xTrain, labelsTrain = preprocess(trainingData, nPts=int(nPts==1))
     utils.printCurrentTime()
     print "preprocessing test data"
+    # here split test set by nPts regardless of training or test
     xTest, labelsTest = preprocess(testData, nPts=nPts)
     utils.printCurrentTime()
     print "encoding labels"

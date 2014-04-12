@@ -10,6 +10,9 @@ import logging
 import time
 import os
 from tripClassifier import TripClassifier
+import sqlite3
+#import rawLocation
+
 
 class Predictor(object):
     '''
@@ -79,6 +82,7 @@ if __name__ == "__main__":
                         required=True,
                         metavar="GTFS_DB_FILE",
                         help="path to GTFS data (in sqlite3 db format)")
+    #parser.add_argument("-e", "-events-db-file", dest = "events_db")
     
     args = parser.parse_args()
         
@@ -111,16 +115,30 @@ if __name__ == "__main__":
     
     prevTime = 0
 
+
+
     # I had implemented the listener as a Thread, as you can see here. This
     # is because the messaging solution I was using was event-based and I was
     # explicitly handling the threading. There's no real need for you to do
     # this for your project.
-    locMan.start()
-    while True:
-        time.sleep(0.01)
-        currTime = int(time.time() - tStart)
-        if (currTime > prevTime):
-            prevTime = currTime
-        if (currTime > tStart + tLim):
-            locMan.join()
-            break
+    # locMan.start()
+    # while True:
+    #     time.sleep(0.01)
+    #     currTime = int(time.time() - tStart)
+    #     if (currTime > prevTime):
+    #         prevTime = currTime
+    #     if (currTime > tStart + tLim):
+    #         locMan.join()
+    #         break
+
+
+    #Pseudocode: for each raw location in the events DB, update
+    #No need for location manager?  -- Just feed data from db directly into self.newRawLocation (not sure about this)
+    conn = sqlite3.connect(dbfileloc)
+    statement = """ SELECT * from raw_loc_subset;"""
+    cursor = conn.execute(statement)
+    for row in cursor:
+        rawLoc = rawLocation(row[0],row[1],row[2],row[3],row[4],row[5],row[6],row[7], row[8], row[9], row[10])
+        self.newRawLocation(rawLoc)
+
+

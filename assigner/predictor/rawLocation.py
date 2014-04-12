@@ -1,3 +1,4 @@
+
 class rawLocation(object):
 	def __init__(self, device_id, time, lat, lon, spd, bearing, accuracy, driver_id, bus_id, dt):
 		self.deviceId = device_id

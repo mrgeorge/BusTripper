@@ -4,7 +4,6 @@ Created on Sep 19, 2013
 @author: jacob
 '''
 
-from __future__ import division
 import logging
 from assignedTrip import AssignedTrip
 import util
@@ -12,6 +11,7 @@ import time
 from pygtfs.projectedLocation import createJsonFromProjLoc
 import json
 import pprint
+from __future__ import division
 
 class AssignedTrips(object):
     '''
@@ -61,14 +61,13 @@ class AssignedTrips(object):
                 badList.append(deviceId)
         return badList
 
-
     def getAccuracy(self):
         badList = getInaccurateAssignedDeviceList()
         goodList = []
         for deviceID in self.assignedTripDict:
             assignedBlock = self.assignedTripDict[deviceId].block
 
-            candidateBlocks = [x['block'] for x in
+            candidateBlocks = [x['block'] for x in 
                                self.tripDistances.candidateBlocks[deviceId]]
 
             if assignedBlock in candidateBlocks:
@@ -78,6 +77,8 @@ class AssignedTrips(object):
         return accuracy
 
 
+    
+    
     def getBacktrackingDeviceList(self):
         backtrackList = []
         for deviceId in self.assignedTripDict:

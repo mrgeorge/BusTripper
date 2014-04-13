@@ -11,7 +11,7 @@ import time
 import os
 from tripClassifier import TripClassifier
 import sqlite3
-#import rawLocation
+from rawLocation import rawLocation
 
 
 class Predictor(object):
@@ -82,7 +82,10 @@ if __name__ == "__main__":
                         required=True,
                         metavar="GTFS_DB_FILE",
                         help="path to GTFS data (in sqlite3 db format)")
-    #parser.add_argument("-e", "-events-db-file", dest = "events_db")
+    parser.add_argument("-e", "-events-db-file", dest = "events_db",
+                        required=True,
+                        metavar="EVENTS_DB_FILE",
+                        help="path to events data (in sqlite3 db format)")
     
     args = parser.parse_args()
         
@@ -107,7 +110,7 @@ if __name__ == "__main__":
     # Basically, all it needs to call the newRawLocation method of myPredictor
     # whenever there's a new raw location you want to give it.
     
-    locMan = LocationManager(myPredictor)
+    #locMan = LocationManager(myPredictor)
     
     tStart = time.time()
     
@@ -134,11 +137,11 @@ if __name__ == "__main__":
 
     #Pseudocode: for each raw location in the events DB, update
     #No need for location manager?  -- Just feed data from db directly into self.newRawLocation (not sure about this)
-    conn = sqlite3.connect(dbfileloc)
+    conn = sqlite3.connect(args.events_db)
     statement = """ SELECT * from raw_loc_subset;"""
     cursor = conn.execute(statement)
     for row in cursor:
-        rawLoc = rawLocation(row[0],row[1],row[2],row[3],row[4],row[5],row[6],row[7], row[8], row[9], row[10])
-        self.newRawLocation(rawLoc)
+        rawLoc = rawLocation(row[0],row[1],row[2],row[3],row[4],row[5],row[6],row[7], row[8], row[9])
+        myPredictor.newRawLocation(rawLoc)
 
 

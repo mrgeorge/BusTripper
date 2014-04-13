@@ -3,7 +3,7 @@ Created on Sep 19, 2013
 
 @author: jacob
 '''
-
+from __future__ import division
 import logging
 from assignedTrip import AssignedTrip
 import util
@@ -11,7 +11,6 @@ import time
 from pygtfs.projectedLocation import createJsonFromProjLoc
 import json
 import pprint
-from __future__ import division
 
 class AssignedTrips(object):
     '''

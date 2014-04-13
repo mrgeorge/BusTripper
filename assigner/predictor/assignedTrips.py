@@ -72,7 +72,7 @@ class AssignedTrips(object):
             if assignedBlock in candidateBlocks:
                 goodList.append(deviceId)
         accuracy = len(goodList) / (len(goodList) + len(badList))
-        print accuracy
+        print "Accuracy is " + str(accuracy)
         return accuracy
 
 

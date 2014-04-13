@@ -114,9 +114,11 @@ if __name__ == "__main__":
     
     tStart = time.time()
     
-    tLim = 60*60*24*365*10
+    # tLim = 60*60*24*365*10
     
-    prevTime = 0
+    # prevTime = 0
+
+    timeLimit = 3600 + tStart #cap at 1 hour
 
 
 
@@ -142,6 +144,10 @@ if __name__ == "__main__":
     cursor = conn.execute(statement)
     for row in cursor:
         rawLoc = rawLocation(row[0],row[1],row[2],row[3],row[4],row[5],row[6],row[7], row[8], row[9])
+        print("Adding raw location for device_id: " + row[0])
         myPredictor.newRawLocation(rawLoc)
+        if (time.time() > timeLimit):
+            myPredictor.tripClassifier.assignedTrips.getAccuracy() #breaking abstraction barriers, to be cleaned up
+            break
 
 

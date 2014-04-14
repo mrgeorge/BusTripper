@@ -8,10 +8,20 @@ from pygtfs.gtfsData import GtfsData
 from argparse import ArgumentParser
 import logging
 import time
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 import os
 from tripClassifier import TripClassifier
 import sqlite3
 from rawLocation import rawLocation
+
+import os, sys
+try:
+    import BusTripper
+except ImportError: # add grandparent dir to python search path
+    path, filename = os.path.split(__file__)
+    sys.path.append(os.path.abspath(os.path.join(path,"../../")))
+    import BusTripper
 
 
 class Predictor(object):
@@ -139,15 +149,30 @@ if __name__ == "__main__":
 
     #Pseudocode: for each raw location in the events DB, update
     #No need for location manager?  -- Just feed data from db directly into self.newRawLocation (not sure about this)
-    conn = sqlite3.connect(args.events_db)
-    statement = """ SELECT * from raw_loc_subset;"""
-    cursor = conn.execute(statement)
-    for row in cursor:
-        rawLoc = rawLocation(row[0],row[1],row[2],row[3],row[4],row[5],row[6],row[7], row[8], row[9])
-        print("Adding raw location for device_id: " + row[0])
-        myPredictor.newRawLocation(rawLoc)
-        if (time.time() > timeLimit):
-            myPredictor.tripClassifier.assignedTrips.getAccuracy() #breaking abstraction barriers, to be cleaned up
-            break
 
+    db = BusTripper.eventsDBManager.EventsDB(args.events_db)
+    dateStart = datetime(2013, 8, 1)
+    nMonths = 6
 
+    for ii in range(nMonths):
+        dateStartStr = (dateStart + relativedelta(months=ii)).date().isoformat()
+        dateEndStr = (dateStart + relativedelta(months=ii+1)).date().isoformat()
+
+        print "Selecting data from {} to {}".format(dateStartStr, dateEndStr)
+        df = db.selectData(cols=("device_id", "time", "latitude", "longitude"),
+                            tableName="raw_loc_subset",
+                            date=(dateStartStr, dateEndStr), convertTime=False)
+
+        print "Adding data for this month to predictor"
+        for ind,row in df.iterrows():
+            rawLoc = rawLocation(row['device_id'], row['time'],
+                                 row['latitude'], row['longitude'])
+            myPredictor.newRawLocation(rawLoc)
+
+            if (time.time() > timeLimit):
+                print "Time is up - breaking..."
+                myPredictor.tripClassifier.assignedTrips.getAccuracy() #breaking abstraction barriers, to be cleaned up
+                break
+
+        print "Cumulative accuracy through {}".format(dateEndStr)
+        myPredictor.tripClassifier.assignedTrips.getAccuracy() #breaking abstraction barriers, to be cleaned up

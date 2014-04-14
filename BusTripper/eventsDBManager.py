@@ -125,12 +125,25 @@ class EventsDB(object):
 
     def selectData(self, distinct=False, cols=None, tableName="raw_loc_subset",
                    date=None, time=None, deviceID=None, tripID=None,
-                   routeID=None, limit=None):
+                   routeID=None, limit=None, convertTime=True, applyTZ=False):
         """Construct and execute a general SELECT query
 
         SELECT [DISTINCT] {cols}
         FROM {tableName}
         [WHERE {date, time, deviceID, tripID, routeID}]
+
+        Inputs:
+            distinct - bool for choosing distinct rows (applies to all cols)
+            cols - string or array of column names (None or * -> all)
+            tableName - table name in SQLite db
+            date - string or array (start,end) of selection dates ("YYYY-MM-DD")
+            time - string or array (start,end) of selection times ("HH:MM:SS")
+            deviceID, tripID, routeID - string to slice on these values
+            limit - int to return only first N rows
+            convertTime - bool, if true convert unix ms to datetime object
+            applyTZ - bool, if true with convertTime, apply timezone to datetime
+        Returns:
+            df - pandas data frame with selected columns and rows
         """
 
         if distinct:
@@ -243,8 +256,10 @@ class EventsDB(object):
 
         # Convert time in unix ms to datetime object and set timezone
         if "time" in df.columns:
-            df["time"] = df["time"].apply(pd.datetools.to_datetime,unit='ms')
-            df["time"] = df["time"].apply(lambda x: x.tz_localize("UTC").tz_convert("Europe/Madrid"))
+            if convertTime:
+                df["time"] = df["time"].apply(pd.datetools.to_datetime,unit='ms')
+                if applyTZ:
+                    df["time"] = df["time"].apply(lambda x: x.tz_localize("UTC").tz_convert("Europe/Madrid"))
 
         return df
 

@@ -1,6 +1,6 @@
 
 class rawLocation(object):
-	def __init__(self, device_id, time, lat, lon, spd, bearing, accuracy, driver_id, bus_id, dt):
+	def __init__(self, device_id, time, lat, lon, spd=None, bearing=None, accuracy=None, driver_id=None, bus_id=None, dt=None):
 		self.deviceId = device_id
 		self.ts = time
 		self.lat = lat

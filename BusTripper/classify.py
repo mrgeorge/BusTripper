@@ -68,7 +68,8 @@ def getSequences(df, nPts=10):
     Inputs:
         df - pandas dataframe
         nPts - number of points per sequence (default = 10)
-               if nPts<1, group by trip (i.e. sequence length = trip length)
+               if nPts<0, group by trip (i.e. sequence length = trip length)
+               and exclude trips shorter than -nPts
     Returns:
         seqFrame - dataframe with labels and sequences
             labels are date/deviceID/tripID tuples
@@ -95,20 +96,27 @@ def getSequences(df, nPts=10):
     ddtFrames = []
     for dateDevTrip, grp in dfg:
         nTot = len(grp)
-        if nPts < 1:
+        if nPts < 0:
             seqLength = nTot
             nSequences = 1
-        else:
+        elif nPts >= 1:
             seqLength = nPts
             nSequences = np.floor_divide(nTot, seqLength)
+        else:
+            raise ValueError(nPts)
 
         ddtSequences = np.empty(nSequences, dtype=object)
         for ss in range(nSequences):
             ddtSequences[ss] = grp[["time", "latitude", "longitude"]][ss*seqLength:(ss+1)*seqLength].set_index("time")
+
         ddtFrame = pd.DataFrame(data = {"label":[dateDevTrip for ii in range(nSequences)], "sequence":ddtSequences})
         ddtFrames.append(ddtFrame)
 
     seqFrame = pd.concat(ddtFrames, ignore_index=True)
+
+    # remove trips that are too short
+    if nPts < 0:
+        seqFrame = seqFrame[seqFrame['sequence'].apply(lambda x:len(x) > -nPts)]
 
     return seqFrame
 
@@ -167,15 +175,26 @@ def summarizeClassifications(yTrue, yPred, encoder):
 
 def dtwClassifier(xTrain, yTrain, xTest):
 
-    yTest = np.empty(xTest.size, dtype='int64')
+    yTest = np.empty(xTest.size, dtype=yTrain.dtype)
     for ii, test in enumerate(xTest):
         print "{} / {}".format(ii, xTest.size)
         minDist = np.inf
         for train,label in zip(xTrain, yTrain):
-            if dtw.RDTW(test.values, train.values) < minDist:
+            dtwDist = dtw.RDTW(test.values, train.values)
+            if dtwDist < minDist:
                 yTest[ii] = label
 
     return yTest
+
+def vecDTWClassifier(xTrain, yTrain, xTest):
+    xTrainList = [xTrain['sequence'].iloc[ii].values \
+                  for ii in range(len(xTrain))]
+    xTestList = [xTest['sequence'].iloc[ii].values \
+                  for ii in range(len(xTest))]
+    dtwMat = dtw.vecRDTW(xTestList, xTrainList)
+
+    yHat = yTrain[np.argmin(dtwMat, axis=1)]
+    return yHat
 
 def classify(dbFileLoc, nPts=1):
     utils.printCurrentTime()
@@ -188,8 +207,11 @@ def classify(dbFileLoc, nPts=1):
     utils.printCurrentTime()
     print "preprocessing training data"
     # if nPts == 1, pass that value
-    # else pass nPts=0 so training set is split by trip
-    xTrain, labelsTrain = preprocess(trainingData, nPts=int(nPts==1))
+    # else pass -nPts so training set is split by trip
+    if nPts > 1:
+        xTrain, labelsTrain = preprocess(trainingData, nPts=-nPts)
+    else:
+        xTrain, labelsTrain = preprocess(trainingData, nPts=nPts)
     utils.printCurrentTime()
     print "preprocessing test data"
     # here split test set by nPts regardless of training or test
@@ -211,6 +233,7 @@ def classify(dbFileLoc, nPts=1):
     elif hasDTW:
         print "predicting with DTW on test data"
         yHat = dtwClassifier(xTrain, yTrain, xTest)
+#        yHat = vecDTWClassifier(xTrain, yTrain, xTest)
     else:
         print "DTW module not available, can't use nPts > 1"
         raise ImportError(dtw)

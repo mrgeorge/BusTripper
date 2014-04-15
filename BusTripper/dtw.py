@@ -36,9 +36,25 @@ def DTWDistance(arr1, arr2):
                                          DTW[ii-1, jj-1]])
     return DTW[nRows,nCols]
 
-def RDTW(arr1, arr2):
-    """Call R's DTW and return distance"""
-    # Calculate the alignment vector and corresponding distance
-    return R.dtw(arr1, arr2, distance_only=True, open_begin=True,open_end=True,
+def RDTW(query, template):
+    """Call R's DTW and return distance
+
+    Inputs:
+        query and template are ndarrays with each row a separate time series.
+        Open-ended matching assumes queries match a subset of the template.
+    Returns:
+        DTW distance (float) computed by the DTW package in R
+        (http://dtw.r-forge.r-project.org/)
+    """
+    # Calculate the DTW distance
+    return R.dtw(query, template, distance_only=True,
+                 open_begin=True, open_end=True,
                  step_pattern=R('rabinerJuangStepPattern(3, "c", TRUE)')
                  ).rx('distance')[0][0]
+
+def vecRDTW(queryLib, templateLib):
+    """Call R's DTW and return distance"""
+    # Calculate the DTW distance for each pair of time series
+    return np.array(R.dist(queryLib, templateLib, method="DTW",
+                           distance_only=True, open_begin=True, open_end=True,
+                           step_pattern=R('rabinerJuangStepPattern(3, "c", TRUE)')))

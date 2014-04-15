@@ -61,7 +61,7 @@ class AssignedTrips(object):
         return badList
 
     def getAccuracy(self):
-        badList = getInaccurateAssignedDeviceList()
+        badList = self.getInaccurateAssignedDeviceList()
         goodList = []
         for deviceID in self.assignedTripDict:
             assignedBlock = self.assignedTripDict[deviceId].block

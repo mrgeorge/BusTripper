@@ -424,37 +424,43 @@ class GtfsDbManager(object):
         return stopTimesList
     
     
-    def getAllStopTimes(self):
+    def getAllStopTimes(self, tripIdList=None):
         '''
         Return the shape id for the given trip.
-        
+
         Keyword arguments:
         tripId -- string representing trip id.
         '''
-        
+
         stopTimesDict = {}
-        
-        sqlQuery = "SELECT trip_id, stop_sequence, " \
-            + "substr('0'||arrival_time,-8), substr('0'||departure_time,-8), stop_id " \
-            + "FROM stop_times " \
-            + "ORDER BY trip_id"
-            
-        cursor = self.conn.execute(sqlQuery)
+
+        if tripIdList is None:
+            sqlQuery = "SELECT trip_id, stop_sequence, " \
+            + "arr_sec, dep_sec, stop_id " \
+            + "FROM stop_times_simple "
+            cursor = self.conn.execute(sqlQuery)
+        else:
+            sqlQuery = "SELECT trip_id, stop_sequence, " \
+            + "arr_sec, dep_sec, stop_id " \
+            + "FROM stop_times_simple " \
+            + "WHERE trip_id in ({0})".format(', '.join(['?' for ii in tripIdList]))
+            cursor = self.conn.execute(sqlQuery, tuple(tripIdList))
+
         for row in cursor:
             trip_id = row[0]
             if trip_id not in stopTimesDict:
                 stopTimesDict[trip_id] = []
-                
+
             stopTimeDict = {}
             stopTimeDict['stopSequence'] = int(row[1])
-            stopTimeDict['arrTimeMillis'] = self.getMillisFromTimeString(row[2])
-            stopTimeDict['depTimeMillis'] = self.getMillisFromTimeString(row[3])
+            stopTimeDict['arrTimeMillis'] = int(row[2])*1000
+            stopTimeDict['depTimeMillis'] = int(row[3])*1000
             stopTimeDict['stopId'] = row[4]
             stopTimesDict[trip_id].append(stopTimeDict)
-            
+
         return stopTimesDict
-    
-    
+
+
     def getShapeIdForTripId(self, tripId):
         '''
         Return the shape id for the given trip.

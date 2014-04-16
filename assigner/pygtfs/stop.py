@@ -10,13 +10,13 @@ class Stop(object):
     '''
 
 
-    def __init__(self, stopId, stopLat, stopLon):
+    def __init__(self, stopId, stopLat, stopLon, stopName=None):
         '''
         Constructor
         '''
         self.stopId, self.stopLat, self.stopLon = stopId, stopLat, stopLon
-        
-        
+        self.stopName = stopName
+
     def __eq__(self, other):
         return self.stopId == other.stopId
 

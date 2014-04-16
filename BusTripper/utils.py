@@ -45,6 +45,13 @@ def getWeekSecs(dt):
     return ((dtvals - dtvals.astype("datetime64[W]")).astype("timedelta64[s]")
             - npWeekdayOffset).astype("int64") % weekInSecs
 
+def getDayHours(dt):
+    """Return fraction hours since start of day"""
+    # numpy datetime casting is much faster than operations on datetime objects
+    dtvals = dt.values.astype("datetime64[ns]") # strip tz if necessary
+    return ((dtvals - dtvals.astype("datetime64[D]")).astype("timedelta64[s]")
+           ).astype("float64") / 60. / 60.
+
 def secsToMeters(secs, speed=10.):
     """Convert time in seconds to distance in meters given avg speed in m/s)"""
     return speed * secs.astype('float64')

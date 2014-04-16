@@ -23,3 +23,6 @@ BusTripper currently uses the following packages:
 * [R](http://www.r-project.org/), the
   [DTW package](http://dtw.r-forge.r-project.org/) for R, and the
   python wrapper [rpy2](http://rpy.sourceforge.net/rpy2.html)
+
+* [shapely](https://pypi.python.org/pypi/Shapely) (optional) is used
+  for a visualization tool.

@@ -19,6 +19,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm
 from sklearn.preprocessing import LabelEncoder
+import datetime
 
 import shapely.geometry
 
@@ -39,10 +40,9 @@ edb = eventsDBManager.EventsDB("../data/dbus_events.db")
 # pick a routeID and shapeID for now
 routeID = u'5'
 shapeID = u'50101'
-date = "2014-01-10"
-day = 5 # 1=Monday, 7=Sunday
+dt = datetime.datetime(2014,1,10)
 
-serviceIDs = gdb.getServiceIdsForDay(day)
+serviceIDs = gdb.getServiceIdsForDate(dt)
 shape = gdb.getShape(shapeID)
 shapeCoords = [[pt['lat'], pt['lon']] for pt in shape.pointList]
 shapeLS = shapely.geometry.asLineString(shapeCoords)
@@ -70,6 +70,8 @@ maxHr = -1
 
 allStopTimes = gdb.getAllStopTimes(tripIdList = tripMatches)
 
+plt.clf()
+
 for tripID, color in zip(tripMatches, tripColors):
 #    stopTimesOnTrip = gdb.getStopTimesForTripId(tripID)
     stopTimesOnTrip = allStopTimes[tripID]
@@ -80,8 +82,8 @@ for tripID, color in zip(tripMatches, tripColors):
     if thisMaxHr > maxHr:
         maxHr = thisMaxHr
 
-    events = edb.getEventsForTripDate(tripID, date)
-    eventHrs = utils.getDayHours(events['time'])
+    events = edb.getEventsForTripDate(tripID, dt.date().isoformat())
+    eventHrs = utils.getDayHours(events['time'], tzHrOffset=1)
     eventStopInds = [stopIDsOnShape.index(ev) for ev in events['stop_id']]
     eventDistances = [stopDistances[ind] for ind in eventStopInds]
 

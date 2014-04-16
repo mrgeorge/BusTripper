@@ -123,6 +123,12 @@ class EventsDB(object):
         return self.selectData(distinct=True, cols="trip_id",
             tableName="event_subset", deviceID=deviceID, date=date)
 
+    def getEventsForTripDate(self, tripID, date):
+        """Get list of stop_ids and times for trip and date"""
+        return self.selectData(cols=("time", "stop_id"),
+                               tableName="event_subset",
+                               tripID=tripID, date=date)
+
     def selectData(self, distinct=False, cols=None, tableName="raw_loc_subset",
                    date=None, time=None, deviceID=None, tripID=None,
                    routeID=None, limit=None, convertTime=True, applyTZ=False):

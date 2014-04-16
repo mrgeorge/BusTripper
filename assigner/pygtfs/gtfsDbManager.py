@@ -591,8 +591,8 @@ class GtfsDbManager(object):
 
         return routeIdList
 
-    def getServiceIdsForDay(self, day, exclude0000=True):
-        """Return list of service_ids that match a given day
+    def getServiceIdsForDate(self, dt, exclude0000=True):
+        """Return list of service_ids that match a given datetime
 
         Inputs:
             day - int monday=1, sunday =7
@@ -600,9 +600,15 @@ class GtfsDbManager(object):
 
         dayDict = {1:"monday", 2:"tuesday", 3:"wednesday", 4:"thursday",
                    5:"friday", 6:"saturday", 7:"sunday"}
-        sqlQuery = "select service_id from calendar where {} = 1;".format(dayDict[day])
+        sqlQuery = "select service_id from calendar" \
+          + " where {} = 1".format(dayDict[dt.isoweekday()]) \
+          + " and start_date <= ? and end_date >= ?;"
+
+        dtstr = dt.date().isoformat().replace('-','')
+        queryTuple = (dtstr, dtstr)
+        cursor = self.conn.execute(sqlQuery, queryTuple)
+
         serviceIdList = []
-        cursor = self.conn.execute(sqlQuery)
         for row in cursor:
             serviceIdList.append(row[0])
 

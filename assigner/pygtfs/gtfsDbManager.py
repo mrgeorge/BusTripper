@@ -161,25 +161,38 @@ class GtfsDbManager(object):
         return serviceIdList
     
     
-    def getStops(self):
+    def getStops(self, stopIdList=None):
         '''
         Return the list of stops in the GTFS database.
         
         '''
-        
-        sqlQuery = "select stop_id, stop_lat, stop_lon from stops" \
-            + " order by stop_id asc"
-                
+
         stopList = []
-        
-        cursor = self.conn.execute(sqlQuery)
+        if stopIdList is None:
+            sqlQuery = "select stop_id, stop_lat, stop_lon, stop_name from stops" \
+                + " order by stop_id asc"
+            cursor = self.conn.execute(sqlQuery)
+        else:
+            sqlQuery = "select stop_id, stop_lat, stop_lon, stop_name from stops" \
+                + " where stop_id in ({0}) order by stop_id asc".format(', '.join(['?' for ii in stopIdList]))
+            cursor = self.conn.execute(sqlQuery, tuple(stopIdList))
+
         for row in cursor:
-            stop = Stop(row[0], float(row[1]), float(row[2]))
+            stop = Stop(row[0], float(row[1]), float(row[2]), stopName=row[3])
             stopList.append(stop)
-            
+
+        if stopIdList is not None:
+            nStops = len(stopList)
+            ind = [0] * nStops
+            for ii in range(nStops):
+                ss = Stop(stopIdList[ii],0,0) # dummy stop
+                ind[ii] = stopList.index(ss)
+
+            return [stopList[ii] for ii in ind]
+
         return stopList
-    
-    
+
+
     def getUniqueStops(self, route_id_list):
         '''
         Return the list of stops in the GTFS database that are visited on
@@ -190,26 +203,23 @@ class GtfsDbManager(object):
         tripList = []
         route_id_tup = tuple(route_id_list)
         tripSqlQuery = "select trip_id from trips"
+
         if self.service_id is not None:
             tripSqlQuery += " where service_id = ?"
-        tripSqlQuery += " and route_id in ({0})".format(', '.join('?' for _ in route_id_tup))
-        if self.service_id is not None:
+            tripSqlQuery += " and route_id in ({0})".format(', '.join('?' for _ in route_id_tup))
             queryTuple = (self.service_id, ) + route_id_tup
         else:
+            tripSqlQuery += " where route_id in ({0})".format(', '.join('?' for _ in route_id_tup))
             queryTuple = route_id_tup
-        tripCursor = self.conn.execute(tripSqlQuery,queryTuple)
-        
-        for row in tripCursor:
-            tripList.append(row[0])
         
         # Select the distinct stops that will be visited
         stopList = []
         stopSqlQuery = "select distinct stops.stop_id, stops.stop_lat, stops.stop_lon" \
         " from stops" \
         " inner join stop_times on stops.stop_id = stop_times.stop_id" \
-        " where stop_times.trip_id in ({0})".format(', '.join('?' for _ in tripList))
-        
-        stopCursor = self.conn.execute(stopSqlQuery, tripList)
+        " where stop_times.trip_id in ({0})".format(tripSqlQuery)
+
+        stopCursor = self.conn.execute(stopSqlQuery, queryTuple)
         for row in stopCursor:
             stopList.append((row[0],row[1],row[2]))
         return stopList
@@ -371,7 +381,7 @@ class GtfsDbManager(object):
         Return a dictionary associating route and shape ids with trip ids.
         '''
         
-        sqlQuery = "SELECT trip_id, shape_id, route_id " \
+        sqlQuery = "SELECT trip_id, shape_id, route_id, service_id " \
                 + "FROM trips" \
                 
         tripsDict = {}
@@ -379,7 +389,8 @@ class GtfsDbManager(object):
         cursor = self.conn.execute(sqlQuery)
         for row in cursor:
             tripDict = {'routeId' : row[2],
-                        'shapeId' : row[1]}
+                        'shapeId' : row[1],
+                        'serviceId' : row[3]}
             tripsDict[row[0]] = tripDict
             
         return tripsDict
@@ -553,3 +564,56 @@ class GtfsDbManager(object):
             timezone = row[0] 
         
         return timezone
+
+
+    ### Methods added to help with development of mareyPlot
+
+    def getRouteIds(self):
+        '''
+        Return the list of route ids in the GTFS database.
+        
+        '''
+
+        sqlQuery = "select distinct route_id from routes" \
+            + " order by route_id asc"
+
+        routeIdList = []
+
+        cursor = self.conn.execute(sqlQuery)
+        for row in cursor:
+            routeIdList.append(row[0])
+
+        return routeIdList
+
+    def getServiceIdsForDay(self, day, exclude0000=True):
+        """Return list of service_ids that match a given day
+
+        Inputs:
+            day - int monday=1, sunday =7
+        """
+
+        dayDict = {1:"monday", 2:"tuesday", 3:"wednesday", 4:"thursday",
+                   5:"friday", 6:"saturday", 7:"sunday"}
+        sqlQuery = "select service_id from calendar where {} = 1;".format(dayDict[day])
+        serviceIdList = []
+        cursor = self.conn.execute(sqlQuery)
+        for row in cursor:
+            serviceIdList.append(row[0])
+
+        # Get rid of weird serviceId
+        if exclude0000:
+            serviceIdList = [ii for ii in serviceIdList if ii != '0000']
+
+        return serviceIdList
+
+    def getTripIdsForRouteIdServiceIds(self, routeId, serviceIdList):
+        sqlQuery = "select trip_id from trips_simple where route_id = ?"\
+            + " and service_id in ({})".format(', '.join('?' for ii in serviceIdList))
+        queryTuple = (routeId,) + tuple(serviceIdList)
+
+        tripIdList = []
+        cursor = self.conn.execute(sqlQuery, queryTuple)
+        for row in cursor:
+            tripIdList.append(row[0])
+
+        return tripIdList

@@ -62,15 +62,17 @@ stopCoordsMP = shapely.geometry.asMultiPoint(stopCoords)
 stopDistances = [shapeLS.project(smp, normalized=True) for smp in stopCoordsMP]
 
 le = LabelEncoder()
-
 cmap = matplotlib.cm.jet
 tripColors = le.fit_transform(tripMatches) % cmap.N
 
 minHr = 25
 maxHr = -1
 
+allStopTimes = gdb.getAllStopTimes(tripIdList = tripMatches)
+
 for tripID, color in zip(tripMatches, tripColors):
-    stopTimesOnTrip = gdb.getStopTimesForTripId(tripID)
+#    stopTimesOnTrip = gdb.getStopTimesForTripId(tripID)
+    stopTimesOnTrip = allStopTimes[tripID]
     stopHrs = np.array([[s['arrTimeMillis'], s['depTimeMillis']] for s in stopTimesOnTrip]).flatten()/1000./60./60.
     thisMinHr, thisMaxHr = np.min(stopHrs), np.max(stopHrs)
     if thisMinHr < minHr:
@@ -84,13 +86,14 @@ for tripID, color in zip(tripMatches, tripColors):
     eventDistances = [stopDistances[ind] for ind in eventStopInds]
 
     plt.plot(stopHrs, np.repeat(stopDistances,2), color=cmap(color))
-    plt.plot(eventHrs, eventDistances, lw=3, color=cmap(color), alpha=0.5)
-    ax = plt.gca()
-    ax.set_yticks(stopDistances)
-    ylabels = ax.get_yticks().tolist()
-    ylabels = stopNames
-    ax.set_yticklabels(ylabels)
-    ax.set_xticks(range(int(np.floor(minHr)), int(np.ceil(maxHr))))
-    plt.grid(True)
+    plt.plot(eventHrs, eventDistances, lw=5, ls='--', color=cmap(color), alpha=0.5)
+
+ax = plt.gca()
+ax.set_yticks(stopDistances)
+ylabels = ax.get_yticks().tolist()
+ylabels = stopNames
+ax.set_yticklabels(ylabels)
+ax.set_xticks(range(int(np.floor(minHr)), int(np.ceil(maxHr))))
+plt.grid(True)
 
 plt.show()

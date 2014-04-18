@@ -10,11 +10,11 @@ def showDepot():
     ax = plt.gca()
     ax.add_patch(circ)
 
-def plotCoords(rec, plotFilename=None, showPlot=False, colorType="time"):
+def plotCoords(df, plotFilename=None, showPlot=True, colorType="time", mapBG=False):
     """Plot GPS coordinates as a map
 
     Inputs:
-        rec - recarray with latitude,longitude columns
+        df - pandas dataframe with locations
         plotFilename - string with path to save plot files
         showPlot - boolean (True) for interactive plot
         colorType - "time" or "speed" used to color points
@@ -23,16 +23,17 @@ def plotCoords(rec, plotFilename=None, showPlot=False, colorType="time"):
     """
 
     if colorType == "time":
-        cArr = (rec.time-np.min(rec.time))/1000./3600
-        cLabel = "Hours since start of day"
+        cArr = utils.getDayHours(df['time'])
+        cLabel = "Time (hours)"
     elif colorType == "speed":
-        cArr = rec.speed
+        cArr = df['speed'].values
         cLabel = "Speed (m/s)"
     else:
         raise ValueError(colorType)
 
     plt.clf()
-    plt.scatter(rec.longitude, rec.latitude,
+
+    plt.scatter(df['longitude'], df['latitude'],
                 c=cArr, s=10, linewidth=0,
                 alpha=0.5)
     cbar = plt.colorbar()

@@ -53,7 +53,6 @@ def mareyPlot(shapeID, date):
     cmap = matplotlib.cm.coolwarm
     tripColors = np.int64(np.array(le.fit_transform(tripMatches)) * np.float(cmap.N) /
                         len(tripMatches))
-#    tripColors = le.fit_transform(tripMatches) % cmap.N
 
     minHr = 25
     maxHr = -1

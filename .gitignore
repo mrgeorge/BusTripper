@@ -4,3 +4,4 @@
 /plots*
 dbus_events.db
 *.pickle
+/notebooks*

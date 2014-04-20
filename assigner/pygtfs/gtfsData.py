@@ -146,8 +146,9 @@ class GtfsData(object):
                     trip.addStopTime(newStopTime)
                     
                 block.addTrip(trip)
-            except:
+            except Exception as e:
                 self.logger.warning('Failed to create trip ' + tripId + '.')
+                #self.logger.except(e)
         
         return block
         

@@ -11,3 +11,6 @@ class rawLocation(object):
 		self.driver_id = driver_id
 		self.bus_id = bus_id
 		self.dt = dt
+
+	def hasLatAndLon(self):
+		return self.lat is not None and self.lon is not None

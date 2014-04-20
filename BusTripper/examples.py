@@ -17,12 +17,14 @@ except ImportError:
     sys.path.append(os.path.abspath(os.path.join(path,"../assigner/")))
     from pygtfs import gtfsDbManager
 
-def mareyPlot(routeID, shapeID, date, startHour, gtfsDBFile, eventsDBFile):
-
+def mareyPlot(shapeID, date):
+    dt=datetime.datetime(2014,1,date)
+    startHour=9
+    routeID="5"
+    gtfsDBFile = "data/dbus_140221.db"
+    eventsDBFile = "data/dbus_events.db"
     gdb = gtfsDbManager.GtfsDbManager(gtfsDBFile)
     edb = eventsDBManager.EventsDB(eventsDBFile)
-
-    dt=datetime.datetime(2014,1,date)
     endHour = startHour + 6
 
     serviceIDs = gdb.getServiceIdsForDate(dt)

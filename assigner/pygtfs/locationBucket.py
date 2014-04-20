@@ -28,9 +28,14 @@ class LocationBucket(object):
                         return False
                 self.locationList.append(loc)
                 self.locationList.sort(key=lambda loc: loc.ts)
+                print "GOOD LOC"
+                print loc
             else:
+                print "BAD LAT AND LON"
+                print loc
                 return False
-        except Exception:
+        except Exception as e:
+            print e
             return False
         
         
@@ -45,6 +50,9 @@ class LocationBucket(object):
     def getRecent(self, ageMillis):
         tNow = self.time
         tOld = tNow - ageMillis
+
+        print "location list for device id %s is:" % (self.deviceId)
+        print self.locationList
         
         locList = [loc for loc in self.locationList if loc.ts >= tOld]
         locList.sort(key=lambda loc: loc.ts)

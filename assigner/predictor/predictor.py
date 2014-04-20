@@ -14,6 +14,7 @@ import os
 from tripClassifier import TripClassifier
 import sqlite3
 from rawLocation import rawLocation
+import pickle as pickle
 
 import os, sys
 try:
@@ -34,11 +35,19 @@ class Predictor(object):
         '''
         Constructor
         '''
-        self.gtfsData = GtfsData(agency, dbFileLoc)
-            
-        self.tripClassifier = TripClassifier(self.gtfsData, loggerName)
         
         self.logger = logging.getLogger(loggerName)
+        self.logger.info("Attempting to load GtfsData from pickle.")
+        try:
+            with open('temp.pickle','r') as f:
+                self.gtfsData = pickle.load(f)
+        except:
+            self.logger.info("Failed to load GtfsData from pickle. Loading from dbfile.")
+            self.gtfsData = GtfsData(agency, dbFileLoc)
+            with open('temp.pickle','wb') as f:
+                pickle.dump(self.gtfsData, f)
+            
+        self.tripClassifier = TripClassifier(self.gtfsData, loggerName)
         
         self.time = 0
         
@@ -150,29 +159,37 @@ if __name__ == "__main__":
     #Pseudocode: for each raw location in the events DB, update
     #No need for location manager?  -- Just feed data from db directly into self.newRawLocation (not sure about this)
 
-    db = BusTripper.eventsDBManager.EventsDB(args.events_db)
-    dateStart = datetime(2013, 8, 1)
-    nMonths = 6
+    #print "Selecting data from {} to {}".format(dateStartStr, dateEndStr)
+    try:
+        with open('rl.temp.pickle','r') as f:
+            df = pickle.load(f)
+    except:
+        with open('rl.temp.pickle','wb') as f:
+            db = BusTripper.eventsDBManager.EventsDB(args.events_db)
+            dateStart = datetime(2013, 8, 1)
+            nMonths = 1
+            dateStartStr = (dateStart + relativedelta(weeks=0)).date().isoformat()
+            dateEndStr = (dateStart + relativedelta(weeks=1)).date().isoformat()
+            df = db.selectData(cols=("device_id", "time", "latitude", "longitude"),
+                                tableName="raw_loc_subset",
+                                date=(dateStartStr, dateEndStr), convertTime=False)
+            pickle.dump(df, f)
 
-    for ii in range(nMonths):
-        dateStartStr = (dateStart + relativedelta(months=ii)).date().isoformat()
-        dateEndStr = (dateStart + relativedelta(months=ii+1)).date().isoformat()
+    print "Adding data for this month to predictor"
+    for ind,row in df.iterrows():
+        rawLoc = rawLocation(row['device_id'], row['time'],
+                             row['latitude'], row['longitude'])
+        print rawLoc.ts
+        myPredictor.newRawLocation(rawLoc)
 
-        print "Selecting data from {} to {}".format(dateStartStr, dateEndStr)
-        df = db.selectData(cols=("device_id", "time", "latitude", "longitude"),
-                            tableName="raw_loc_subset",
-                            date=(dateStartStr, dateEndStr), convertTime=False)
+        if (time.time() > timeLimit):
+            print "Time is up - breaking..."
+            myPredictor.tripClassifier.assignedTrips.getAccuracy() #breaking abstraction barriers, to be cleaned up
+            break
 
-        print "Adding data for this month to predictor"
-        for ind,row in df.iterrows():
-            rawLoc = rawLocation(row['device_id'], row['time'],
-                                 row['latitude'], row['longitude'])
-            myPredictor.newRawLocation(rawLoc)
+    print "Cumulative accuracy through {}".format(dateEndStr)
+    myPredictor.tripClassifier.assignedTrips.getAccuracy() #breaking abstraction barriers, to be cleaned up
 
-            if (time.time() > timeLimit):
-                print "Time is up - breaking..."
-                myPredictor.tripClassifier.assignedTrips.getAccuracy() #breaking abstraction barriers, to be cleaned up
-                break
+    
 
-        print "Cumulative accuracy through {}".format(dateEndStr)
-        myPredictor.tripClassifier.assignedTrips.getAccuracy() #breaking abstraction barriers, to be cleaned up
+    #for ii in range(nMonths):

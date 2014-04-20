@@ -3,3 +3,4 @@
 /data*
 /plots*
 dbus_events.db
+*.pickle

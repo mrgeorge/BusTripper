@@ -1,7 +1,10 @@
+import os
+import re
 import numpy as np
 import pandas as pd
 from datetime import datetime
 from collections import Iterable
+import sqlite3
 
 # np datetime64[W] weeks start on 1970/1/1 (Thursday)
 # subtract to have weeks start on Monday
@@ -86,3 +89,77 @@ def parseTripID(tripID):
     else:
         serviceID = routeID = blockID = departureTime = direction = None
     return (serviceID, routeID, blockID, departureTime, direction)
+
+
+def getGTFSFileList(gtfsDir, agency="dbus"):
+    """Returns list of filenames with format <gtfsDir><agency>_YYMMDD.db"""
+    dateFmt = "[0-9]{6}" # regex for YYMMDD
+    fileFmt = "^"+agency+"_"+dateFmt+".db$"
+
+    gtfsFileList = []
+
+    for ff in os.listdir(gtfsDir):
+        if re.match(fileFmt, ff):
+            gtfsFileList.append(gtfsDir+ff)
+
+    return gtfsFileList
+
+def buildServiceCalendar(gtfsDir, agency="dbus", exclude0000=True):
+    """Concatenate all GTFS calendar tables into a dataframe
+
+    Inputs:
+        gtfsDir - path to directory with GTFS db files
+        agency - string prefix for db filenames
+    Returns:
+        serviceCalendar - pandas dataframe with calendars, duplicates removed
+    """
+    gtfsFileList = getGTFSFileList(gtfsDir, agency=agency)
+
+    # Copy calendar table from each GTFS db into :memory: db
+    fc = sqlite3.connect(":memory:")
+    for ii, gdbFile in enumerate(gtfsFileList):
+        fc.execute("ATTACH DATABASE '{}' AS gdb".format(gdbFile))
+        if ii==0:
+            cur = fc.execute("CREATE TABLE main.calendar AS SELECT * FROM gdb.calendar")
+        else:
+            cur = fc.execute("INSERT INTO main.calendar SELECT * FROM gdb.calendar")
+        fc.execute("DETACH DATABASE gdb")
+
+    # Extract concatenated calendar into pandas dataframe
+    query = "SELECT * FROM main.calendar"
+    sc = pd.io.sql.frame_query(query, fc).drop_duplicates()
+    fc.close()
+
+    # Clean up dataframe
+    sc.sort(("service_id", "start_date", "end_date"), inplace=True)
+    sc.reset_index(inplace=True, drop=True)
+
+    # Remove special service ID
+    if exclude0000:
+        sc = sc[sc['service_id'] != '0000']
+
+    # Convert start and end dates to datetime objects
+    default = datetime(1970,1,1)
+    sc['start_date'] = sc['start_date'].apply(lambda x:
+        pd.datetools.dateutil_parse(x, default=default)[0])
+    sc['end_date'] = sc['end_date'].apply(lambda x:
+        pd.datetools.dateutil_parse(x, default=default)[0])
+
+    return sc
+
+def getServiceForDate(dt, serviceCalendar):
+    """Search GTFS calendars for service info given a datetime object
+
+    Input:
+        dt - datetime object
+        serviceCalendar - pd dataframe with calendar data
+    Returns:
+        serviceID
+    """
+
+    dayDict = {1:"monday", 2:"tuesday", 3:"wednesday", 4:"thursday",
+               5:"friday", 6:"saturday", 7:"sunday"}
+    match = ((serviceCalendar[dayDict[dt.isoweekday()]] == '1') &
+             (serviceCalendar['start_date'] <= dt) &
+             (serviceCalendar['end_date'] >= dt))
+    return serviceCalendar['service_id'][match].values

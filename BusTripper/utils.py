@@ -130,13 +130,15 @@ def buildServiceCalendar(gtfsDir, agency="dbus", exclude0000=True):
     sc = pd.io.sql.frame_query(query, fc).drop_duplicates()
     fc.close()
 
-    # Clean up dataframe
-    sc.sort(("service_id", "start_date", "end_date"), inplace=True)
-    sc.reset_index(inplace=True, drop=True)
+    ### Clean up dataframe
 
     # Remove special service ID
     if exclude0000:
         sc = sc[sc['service_id'] != '0000']
+
+    # Sort and re-index
+    sc.sort(("service_id", "start_date", "end_date"), inplace=True)
+    sc.reset_index(inplace=True, drop=True)
 
     # Convert start and end dates to datetime objects
     default = datetime(1970,1,1)
@@ -162,4 +164,4 @@ def getServiceForDate(dt, serviceCalendar):
     match = ((serviceCalendar[dayDict[dt.isoweekday()]] == '1') &
              (serviceCalendar['start_date'] <= dt) &
              (serviceCalendar['end_date'] >= dt))
-    return serviceCalendar['service_id'][match].values
+    return serviceCalendar[['service_id','start_date','end_date']][match]

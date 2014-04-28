@@ -187,9 +187,9 @@ def dtwClassifier(xTrain, yTrain, xTest):
     return yTest
 
 def vecDTWClassifier(xTrain, yTrain, xTest):
-    xTrainList = [xTrain['sequence'].iloc[ii].values \
+    xTrainList = [xTrain.iloc[ii].values \
                   for ii in range(len(xTrain))]
-    xTestList = [xTest['sequence'].iloc[ii].values \
+    xTestList = [xTest.iloc[ii].values \
                   for ii in range(len(xTest))]
     dtwMat = dtw.vecRDTW(xTestList, xTrainList)
 

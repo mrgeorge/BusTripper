@@ -276,12 +276,18 @@ def classify(dbFileLoc, gtfsDir, nPts=1, agency="dbus"):
         print "Train set size: ", len(trainIdx)
         print "Test set size: ", len(testIdx)
 
+        if len(trainIdx) == 0:
+            print "No training data with this service: ", service
+            print "Setting trip IDs to None"
+            yHat[testIdx] = encoder.transform([None])
+            continue
+
         utils.printCurrentTime()
         if nPts == 1:
             print "training classifier"
             clf = KNeighborsClassifier(n_neighbors=10)
             # clf = DecisionTreeClassifier(max_depth=10)
-            clf.fit(xTrain.iloc[trainIdx], yTrain.iloc[trainIdx])
+            clf.fit(xTrain.iloc[trainIdx], yTrain[trainIdx])
 
             utils.printCurrentTime()
             print "predicting on test data"
@@ -289,12 +295,15 @@ def classify(dbFileLoc, gtfsDir, nPts=1, agency="dbus"):
         elif hasDTW:
             print "predicting with DTW on test data"
             yHat[testIdx] = dtwClassifier(xTrain.iloc[trainIdx],
-                                          yTrain.iloc[trainIdx],
+                                          yTrain[trainIdx],
                                           xTest.iloc[testIdx])
 #        yHat = vecDTWClassifier(xTrain, yTrain, xTest)
         else:
             print "DTW module not available, can't use nPts > 1"
             raise ImportError(dtw)
+
+        summarizeClassifications(yTest[testIdx], yHat[testIdx], encoder)
+
 
     utils.printCurrentTime()
     summarizeClassifications(yTest, yHat, encoder)

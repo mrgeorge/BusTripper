@@ -5,6 +5,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import confusion_matrix
 import scipy.stats
+import cPickle as pickle
 
 import eventsDBManager
 import utils
@@ -196,52 +197,109 @@ def vecDTWClassifier(xTrain, yTrain, xTest):
     yHat = yTrain[np.argmin(dtwMat, axis=1)]
     return yHat
 
-def classify(dbFileLoc, nPts=1):
+def readData(dbFileLoc):
+    """Try loading data sets from pickles else get from SQL db"""
     utils.printCurrentTime()
     print "reading training data"
-    trainingData = getData(dbFileLoc, '2013-12-01', '2014-01-07')
+    try:
+        with open(dbFileLoc + "_train.pickle", 'r') as ff:
+            trainData = pickle.load(ff)
+    except IOError:
+        trainData = getData(dbFileLoc, '2013-12-01', '2014-01-05')
+        with open(dbFileLoc + "_train.pickle", 'w') as ff:
+            pickle.dump(trainData, ff)
+
     utils.printCurrentTime()
     print "reading test data"
-    testData = getData(dbFileLoc, '2014-01-08', '2014-01-15')
+    try:
+        with open(dbFileLoc + "_test.pickle", 'r') as ff:
+            testData = pickle.load(ff)
+    except IOError:
+        testData = getData(dbFileLoc, '2014-01-08', '2014-01-15')
+        with open(dbFileLoc + "_test.pickle", 'w') as ff:
+            pickle.dump(testData, ff)
+
+    return (trainData, testData)
+
+def classify(dbFileLoc, gtfsDir, nPts=1, agency="dbus"):
+
+    trainData, testData = readData(dbFileLoc)
 
     utils.printCurrentTime()
     print "preprocessing training data"
     # if nPts == 1, pass that value
     # else pass -nPts so training set is split by trip
     if nPts > 1:
-        xTrain, labelsTrain = preprocess(trainingData, nPts=-nPts)
+        xTrain, labelsTrain = preprocess(trainData, nPts=-nPts)
     else:
-        xTrain, labelsTrain = preprocess(trainingData, nPts=nPts)
+        xTrain, labelsTrain = preprocess(trainData, nPts=nPts)
     utils.printCurrentTime()
     print "preprocessing test data"
-    # here split test set by nPts regardless of training or test
+    # here split test set by nPts regardless of train or test
     xTest, labelsTest = preprocess(testData, nPts=nPts)
     utils.printCurrentTime()
     print "encoding labels"
     yTrain, yTest, encoder = encodeLabels(labelsTrain, labelsTest)
 
+    # Split testData by date and match to trainData by serviceID
     utils.printCurrentTime()
-    if nPts == 1:
-        print "training classifier"
-        clf = KNeighborsClassifier(n_neighbors=10)
-        # clf = DecisionTreeClassifier(max_depth=10)
-        clf.fit(xTrain, yTrain)
+    print "Grouping data by date"
+    testGroupDate = testData.groupby(testData['time'].apply(pd.datetime.date))
+    trainGroupDate = trainData.groupby(trainData['time'].apply(pd.datetime.date))
+
+    utils.printCurrentTime()
+    print "Building service calendar"
+    serviceCalendar = utils.buildServiceCalendar(gtfsDir, agency=agency)
+
+    utils.printCurrentTime()
+    print "Assigning service IDs to training data"
+    trainDateServiceDict = {}
+    for dt, trainGroup in trainGroupDate:
+        service = utils.getServiceForDate(dt, serviceCalendar)
+        trainDateServiceDict[dt] = service
+
+    yHat = np.empty(len(yTest), dtype='int64')
+    for dt, testGroup in testGroupDate:
+        utils.printCurrentTime()
+        print "Selecting data for ", dt
+        service = utils.getServiceForDate(dt, serviceCalendar)
+
+        trainSel = trainGroupDate.filter(
+            lambda x: all([(trainDateServiceDict[x.name][col] ==
+                            service[col]).values[0]
+                            for col in service.columns])
+            )
+
+        testIdx = testGroup.index # index for test data with this date
+        trainIdx = trainSel.index # index for training data with same serviceID
+
+        print "Train set size: ", len(trainIdx)
+        print "Test set size: ", len(testIdx)
 
         utils.printCurrentTime()
-        print "predicting on test data"
-        yHat = clf.predict(xTest)
-    elif hasDTW:
-        print "predicting with DTW on test data"
-        yHat = dtwClassifier(xTrain, yTrain, xTest)
+        if nPts == 1:
+            print "training classifier"
+            clf = KNeighborsClassifier(n_neighbors=10)
+            # clf = DecisionTreeClassifier(max_depth=10)
+            clf.fit(xTrain.iloc[trainIdx], yTrain.iloc[trainIdx])
+
+            utils.printCurrentTime()
+            print "predicting on test data"
+            yHat[testIdx] = clf.predict(xTest.iloc[testIdx])
+        elif hasDTW:
+            print "predicting with DTW on test data"
+            yHat[testIdx] = dtwClassifier(xTrain.iloc[trainIdx],
+                                          yTrain.iloc[trainIdx],
+                                          xTest.iloc[testIdx])
 #        yHat = vecDTWClassifier(xTrain, yTrain, xTest)
-    else:
-        print "DTW module not available, can't use nPts > 1"
-        raise ImportError(dtw)
+        else:
+            print "DTW module not available, can't use nPts > 1"
+            raise ImportError(dtw)
 
     utils.printCurrentTime()
     summarizeClassifications(yTest, yHat, encoder)
 
     print "Done"
 
-    return (trainingData, testData, xTrain, xTest, yTrain, yTest, yHat,
+    return (trainData, testData, xTrain, xTest, yTrain, yTest, yHat,
             clf, encoder)

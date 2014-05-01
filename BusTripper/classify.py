@@ -205,7 +205,7 @@ def readData(dbFileLoc):
     try:
         with open(dbFileLoc + "_train.pickle", 'r') as ff:
             trainData = pickle.load(ff)
-    except IOError:
+    except (IOError, EOFError):
         trainData = getData(dbFileLoc, '2013-09-01', '2013-11-31')
         with open(dbFileLoc + "_train.pickle", 'w') as ff:
             pickle.dump(trainData, ff)
@@ -215,7 +215,7 @@ def readData(dbFileLoc):
     try:
         with open(dbFileLoc + "_test.pickle", 'r') as ff:
             testData = pickle.load(ff)
-    except IOError:
+    except (IOError, EOFError):
         testData = getData(dbFileLoc, '2013-12-01', '2013-12-19')
         with open(dbFileLoc + "_test.pickle", 'w') as ff:
             pickle.dump(testData, ff)

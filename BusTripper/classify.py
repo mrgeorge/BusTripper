@@ -237,6 +237,8 @@ def classify(dbFileLoc, gtfsDir, nPts=1, agency="dbus"):
                          np.isfinite(testData['longitude']))]
     trainData = trainData[(np.isfinite(trainData['latitude']) &
                          np.isfinite(trainData['longitude']))]
+    testData.reset_index(inplace=True)
+    trainData.reset_index(inplace=True)
 
     # Split testData by date and match to trainData by serviceID
     utils.printCurrentTime()

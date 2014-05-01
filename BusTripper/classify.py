@@ -206,7 +206,7 @@ def readData(dbFileLoc):
         with open(dbFileLoc + "_train.pickle", 'r') as ff:
             trainData = pickle.load(ff)
     except IOError:
-        trainData = getData(dbFileLoc, '2013-12-01', '2014-01-07')
+        trainData = getData(dbFileLoc, '2013-09-01', '2013-11-31')
         with open(dbFileLoc + "_train.pickle", 'w') as ff:
             pickle.dump(trainData, ff)
 
@@ -216,7 +216,7 @@ def readData(dbFileLoc):
         with open(dbFileLoc + "_test.pickle", 'r') as ff:
             testData = pickle.load(ff)
     except IOError:
-        testData = getData(dbFileLoc, '2014-01-08', '2014-01-15')
+        testData = getData(dbFileLoc, '2013-12-01', '2013-12-19')
         with open(dbFileLoc + "_test.pickle", 'w') as ff:
             pickle.dump(testData, ff)
 
@@ -229,6 +229,14 @@ def classify(dbFileLoc, gtfsDir, nPts=1, agency="dbus"):
     serviceCalendar = utils.buildServiceCalendar(gtfsDir, agency=agency)
 
     trainData, testData = readData(dbFileLoc)
+
+    # Eliminate data with bad or missing lat/long
+    utils.printCurrentTime()
+    print "Removing missing locations"
+    testData = testData[(np.isfinite(testData['latitude']) &
+                         np.isfinite(testData['longitude']))]
+    trainData = trainData[(np.isfinite(trainData['latitude']) &
+                         np.isfinite(trainData['longitude']))]
 
     # Split testData by date and match to trainData by serviceID
     utils.printCurrentTime()

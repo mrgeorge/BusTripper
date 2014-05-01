@@ -121,7 +121,7 @@ def getSequences(df, nPts=10):
 
     return seqFrame
 
-def summarizeClassifications(yTrue, yPred, encoder):
+def summarizeClassifications(yTrue, yPred, encoder, showPlots=True):
     """Print summary stats and show confusion matrices for class predictions
 
     Inputs:
@@ -167,12 +167,13 @@ def summarizeClassifications(yTrue, yPred, encoder):
             (yt[nonNull] == yp[nonNull]).nonzero()[0].size*100/float(nNonNull),
             label)
 
-    print "====Confusion matrices===="
-    for ytl, ypl, label in zip(trueArrs, predArrs, labels):
-        print label
-        yt, yp, encoder = encodeLabels(ytl, ypl)
-        cm = confusion_matrix(yt, yp)
-        plot.plotConfusionMatrix(np.log10(1+cm), title=label, showPlot=True)
+    if showPlots:
+        print "====Confusion matrices===="
+        for ytl, ypl, label in zip(trueArrs, predArrs, labels):
+            print label
+            yt, yp, encoder = encodeLabels(ytl, ypl)
+            cm = confusion_matrix(yt, yp)
+            plot.plotConfusionMatrix(np.log10(1+cm), title=label, showPlot=True)
 
 def dtwClassifier(xTrain, yTrain, xTest):
 
@@ -205,7 +206,7 @@ def readData(dbFileLoc):
         with open(dbFileLoc + "_train.pickle", 'r') as ff:
             trainData = pickle.load(ff)
     except IOError:
-        trainData = getData(dbFileLoc, '2013-12-01', '2014-01-05')
+        trainData = getData(dbFileLoc, '2013-12-01', '2014-01-07')
         with open(dbFileLoc + "_train.pickle", 'w') as ff:
             pickle.dump(trainData, ff)
 
@@ -223,7 +224,34 @@ def readData(dbFileLoc):
 
 def classify(dbFileLoc, gtfsDir, nPts=1, agency="dbus"):
 
+    utils.printCurrentTime()
+    print "Building service calendar"
+    serviceCalendar = utils.buildServiceCalendar(gtfsDir, agency=agency)
+
     trainData, testData = readData(dbFileLoc)
+
+    # Split testData by date and match to trainData by serviceID
+    utils.printCurrentTime()
+    print "Grouping data by date"
+    testGroupDate = testData.groupby(testData['time'].apply(pd.datetime.date))
+    trainGroupDate = trainData.groupby(trainData['time'].apply(pd.datetime.date))
+
+    # Eliminate data that doesn't exist in serviceCalendar (e.g. Jan 6)
+    testData = testGroupDate.filter(lambda x:
+        len(utils.getServiceForDate(x.name, serviceCalendar)) == 1)
+    trainData = trainGroupDate.filter(lambda x:
+        len(utils.getServiceForDate(x.name, serviceCalendar)) == 1)
+
+    # Regroup filtered data
+    testGroupDate = testData.groupby(testData['time'].apply(pd.datetime.date))
+    trainGroupDate = trainData.groupby(trainData['time'].apply(pd.datetime.date))
+
+    utils.printCurrentTime()
+    print "Assigning service IDs to training data"
+    trainDateServiceDict = {}
+    for dt, trainGroup in trainGroupDate:
+        service = utils.getServiceForDate(dt, serviceCalendar)
+        trainDateServiceDict[dt] = service
 
     utils.printCurrentTime()
     print "preprocessing training data"
@@ -237,33 +265,18 @@ def classify(dbFileLoc, gtfsDir, nPts=1, agency="dbus"):
     print "preprocessing test data"
     # here split test set by nPts regardless of train or test
     xTest, labelsTest = preprocess(testData, nPts=nPts)
+
     utils.printCurrentTime()
     print "encoding labels"
     yTrain, yTest, encoder = encodeLabels(labelsTrain, labelsTest)
-
-    # Split testData by date and match to trainData by serviceID
-    utils.printCurrentTime()
-    print "Grouping data by date"
-    testGroupDate = testData.groupby(testData['time'].apply(pd.datetime.date))
-    trainGroupDate = trainData.groupby(trainData['time'].apply(pd.datetime.date))
-
-    utils.printCurrentTime()
-    print "Building service calendar"
-    serviceCalendar = utils.buildServiceCalendar(gtfsDir, agency=agency)
-
-    utils.printCurrentTime()
-    print "Assigning service IDs to training data"
-    trainDateServiceDict = {}
-    for dt, trainGroup in trainGroupDate:
-        service = utils.getServiceForDate(dt, serviceCalendar)
-        trainDateServiceDict[dt] = service
-
     yHat = np.empty(len(yTest), dtype='int64')
+
     for dt, testGroup in testGroupDate:
         utils.printCurrentTime()
         print "Selecting data for ", dt
         service = utils.getServiceForDate(dt, serviceCalendar)
 
+        # Get training data that matches serviceID for this test date
         trainSel = trainGroupDate.filter(
             lambda x: all([(trainDateServiceDict[x.name][col] ==
                             service[col]).values[0]
@@ -276,6 +289,7 @@ def classify(dbFileLoc, gtfsDir, nPts=1, agency="dbus"):
         print "Train set size: ", len(trainIdx)
         print "Test set size: ", len(testIdx)
 
+        # Handle case where no training data exists (e.g. new schedule change)
         if len(trainIdx) == 0:
             print "No training data with this service: ", service
             print "Setting trip IDs to None"
@@ -302,13 +316,14 @@ def classify(dbFileLoc, gtfsDir, nPts=1, agency="dbus"):
             print "DTW module not available, can't use nPts > 1"
             raise ImportError(dtw)
 
-        summarizeClassifications(yTest[testIdx], yHat[testIdx], encoder)
-
+        summarizeClassifications(yTest[testIdx], yHat[testIdx], encoder,
+                                 showPlots=False)
 
     utils.printCurrentTime()
+    print "//////////Overall classification statistics\\\\\\\\\\"
     summarizeClassifications(yTest, yHat, encoder)
 
     print "Done"
 
     return (trainData, testData, xTrain, xTest, yTrain, yTest, yHat,
-            clf, encoder)
+            encoder)

@@ -232,8 +232,8 @@ class TripDistances(object):
         for i, st in enumerate(trip.stopTimeList):
             if (tRelMillis >= st.arrTimeMillis and tRelMillis <= st.depTimeMillis):
                 # Should be waiting at the stop
-                print "waiting at stop..."
-                print tRelMillis, st, st.arrTimeMillis, st.depTimeMillis
+#                print "waiting at stop..."
+#                print tRelMillis, st, st.arrTimeMillis, st.depTimeMillis
                 return st.postKm
 
             if (i+1 < len(trip.stopTimeList)):
@@ -245,8 +245,8 @@ class TripDistances(object):
                     except:
                         pct = 0
 
-                    print "between stops..."
-                    print st, st.postKm, stNext, stNext.postKm, pct
+#                    print "between stops..."
+#                    print st, st.postKm, stNext, stNext.postKm, pct
                     
                     return st.postKm + pct*(stNext.postKm - st.postKm)
             else:
@@ -260,8 +260,8 @@ class TripDistances(object):
 
                     nextPost = stNext.postKm + shape.pointList[-1]['post']
 
-                    print "beyond final stop..."
-                    print st, st.postKm, stNext, nextPost, pct
+#                    print "beyond final stop..."
+#                    print st, st.postKm, stNext, nextPost, pct
                     
                     return st.postKm + pct*(nextPost - st.postKm)
 

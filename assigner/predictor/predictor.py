@@ -172,14 +172,16 @@ if __name__ == "__main__":
             dateEndStr = (dateStart + relativedelta(weeks=1)).date().isoformat()
             df = db.selectData(cols=("device_id", "time", "latitude", "longitude"),
                                 tableName="raw_loc_subset",
-                                date=(dateStartStr, dateEndStr), convertTime=False)
+                                date=(dateStartStr, dateEndStr),
+#                                time=("11:00:00", "18:00:00"),
+                                convertTime=False)
             pickle.dump(df, f)
 
     print "Adding data for this month to predictor"
     for ind,row in df.iterrows():
         rawLoc = rawLocation(row['device_id'], row['time'],
                              row['latitude'], row['longitude'])
-        print rawLoc.ts
+        #print rawLoc.ts
         myPredictor.newRawLocation(rawLoc)
 
         if (time.time() > timeLimit):

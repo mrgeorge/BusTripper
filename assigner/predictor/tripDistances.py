@@ -240,7 +240,10 @@ class TripDistances(object):
                 stNext = trip.stopTimeList[i+1]
                 if (st.depTimeMillis < tRelMillis and tRelMillis < stNext.arrTimeMillis):
                     # Should be between two stops.
-                    pct = (tRelMillis-st.depTimeMillis)/float(stNext.arrTimeMillis-st.depTimeMillis)
+                    try:
+                        pct = (tRelMillis-st.depTimeMillis)/float(stNext.arrTimeMillis-st.depTimeMillis)
+                    except:
+                        pct = 0
 
                     print "between stops..."
                     print st, st.postKm, stNext, stNext.postKm, pct
@@ -250,7 +253,10 @@ class TripDistances(object):
                 # we're beyond the final stop
                 if nextTrip is not None:
                     stNext = nextTrip.stopTimeList[0]
-                    pct = (tRelMillis-st.depTimeMillis)/float(stNext.arrTimeMillis-st.depTimeMillis)
+                    try:
+                        pct = (tRelMillis-st.depTimeMillis)/float(stNext.arrTimeMillis-st.depTimeMillis)
+                    except:
+                        pct=0
 
                     nextPost = stNext.postKm + shape.pointList[-1]['post']
 

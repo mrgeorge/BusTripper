@@ -216,7 +216,7 @@ def readData(dbFileLoc):
         with open(dbFileLoc + "_test.pickle", 'r') as ff:
             testData = pickle.load(ff)
     except (IOError, EOFError):
-        testData = getData(dbFileLoc, '2013-12-01', '2013-12-19')
+        testData = getData(dbFileLoc, '2013-12-01', '2013-12-07')
         with open(dbFileLoc + "_test.pickle", 'w') as ff:
             pickle.dump(testData, ff)
 
@@ -280,6 +280,7 @@ def classify(dbFileLoc, gtfsDir, nPts=1, agency="dbus"):
     print "encoding labels"
     yTrain, yTest, encoder = encodeLabels(labelsTrain, labelsTest)
     yHat = np.empty(len(yTest), dtype='int64')
+    voteFreq = np.empty(len(yTest), dtype='object')
 
     for dt, testGroup in testGroupDate:
         utils.printCurrentTime()
@@ -320,7 +321,8 @@ def classify(dbFileLoc, gtfsDir, nPts=1, agency="dbus"):
             print "tabulating votes"
             votes = yTrain[clf.kneighbors(xTest.iloc[testIdx],
                                           return_distance=False)]
-            voteFreq = np.array([scipy.stats.itemfreq(vv) for vv in votes])
+            voteFreq[testIdx] = np.array([scipy.stats.itemfreq(vv)
+                                          for vv in votes])
         elif hasDTW:
             print "predicting with DTW on test data"
             yHat[testIdx] = dtwClassifier(xTrain.iloc[trainIdx],

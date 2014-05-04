@@ -319,10 +319,10 @@ def classify(dbFileLoc, gtfsDir, nPts=1, agency="dbus"):
             yHat[testIdx] = clf.predict(xTest.iloc[testIdx])
             utils.printCurrentTime()
             print "tabulating votes"
-            votes = yTrain[clf.kneighbors(xTest.iloc[testIdx],
-                                          return_distance=False)]
-            voteFreq[testIdx] = np.array([scipy.stats.itemfreq(vv)
-                                          for vv in votes])
+            votes = yTrain[trainIdx[clf.kneighbors(xTest.iloc[testIdx],
+                                                   return_distance=False)]]
+            for ii,vv in enumerate(votes):
+                voteFreq[testIdx[ii]] = scipy.stats.itemfreq(vv).astype('int64')
         elif hasDTW:
             print "predicting with DTW on test data"
             yHat[testIdx] = dtwClassifier(xTrain.iloc[trainIdx],

@@ -4,13 +4,17 @@ import numpy as np
 
 import utils
 
-def showDepot():
+def setLims(ax):
+    ax.set_xlim((-2.03, -1.9284))
+    ax.set_ylim((43.269, 43.33))
+
+def showDepot(ax):
     circ = plt.Circle(utils.getDepotCoords()[::-1], radius=0.001, color='gray',
                       fill=False, lw=3, ls='dashed')
-    ax = plt.gca()
     ax.add_patch(circ)
 
-def plotCoords(df, plotFilename=None, showPlot=True, colorType="time", mapBG=False):
+def plotCoords(df, plotFilename=None, showPlot=True, colorType="time",
+               bgMapFilename=None, figsize=None):
     """Plot GPS coordinates as a map
 
     Inputs:
@@ -22,6 +26,28 @@ def plotCoords(df, plotFilename=None, showPlot=True, colorType="time", mapBG=Fal
         plots of GPS stream displayed or saved
     """
 
+    if figsize is not None:
+        fig = plt.figure(figsize=figsize)
+    else:
+        fig = plt.figure()
+
+    ax = fig.add_subplot(111)
+
+    setLims(ax)
+
+    if bgMapFilename is not None:
+        left, right = ax.get_xlim()
+        bottom, top = ax.get_ylim()
+        img = plt.imread(bgMapFilename)
+        plt.imshow(img, extent = [left, right, bottom, top], zorder = 0,
+                   alpha=0.8)
+        plt.axis('off')
+    else:
+        plt.xlabel('Longitude')
+        plt.ylabel('Latitude')
+
+    showDepot(ax)
+
     if colorType == "time":
         cArr = utils.getDayHours(df['time'])
         cLabel = "Time (hours)"
@@ -31,17 +57,11 @@ def plotCoords(df, plotFilename=None, showPlot=True, colorType="time", mapBG=Fal
     else:
         raise ValueError(colorType)
 
-    plt.clf()
-
     plt.scatter(df['longitude'], df['latitude'],
                 c=cArr, s=10, linewidth=0,
                 alpha=0.5)
     cbar = plt.colorbar()
     cbar.set_label(cLabel)
-    plt.xlabel('Longitude')
-    plt.ylabel('Latitude')
-
-    showDepot()
 
     if showPlot:
         plt.show()

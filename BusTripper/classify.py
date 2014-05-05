@@ -33,7 +33,7 @@ def encodeLabels(trainLabels, testLabels):
 
     return (yTrain, yTest, encoder)
 
-def preprocess(df, nPts=1):
+def preprocess(df, nPts=1, speed=10):
     """Rescale features and constuct design matrix for classifier
 
     Inputs:
@@ -57,7 +57,7 @@ def preprocess(df, nPts=1):
     else:
         print "scaling time"
         df["weekSecs"] = utils.getWeekSecs(df["time"])
-        df["timeScaled"] = utils.secsToMeters(df["weekSecs"])
+        df["timeScaled"] = utils.secsToMeters(df["weekSecs"], speed=speed)
         xData = df[["timeScaled", "latDist", "lonDist"]]
         labels = df["trip_id"]
 
@@ -206,7 +206,7 @@ def readData(dbFileLoc):
         with open(dbFileLoc + "_train.pickle", 'r') as ff:
             trainData = pickle.load(ff)
     except (IOError, EOFError):
-        trainData = getData(dbFileLoc, '2013-09-01', '2013-11-31')
+        trainData = getData(dbFileLoc, '2013-11-01', '2013-11-31')
         with open(dbFileLoc + "_train.pickle", 'w') as ff:
             pickle.dump(trainData, ff)
 
@@ -216,13 +216,14 @@ def readData(dbFileLoc):
         with open(dbFileLoc + "_test.pickle", 'r') as ff:
             testData = pickle.load(ff)
     except (IOError, EOFError):
-        testData = getData(dbFileLoc, '2013-12-01', '2013-12-07')
+        testData = getData(dbFileLoc, '2013-12-04', '2013-12-04')
         with open(dbFileLoc + "_test.pickle", 'w') as ff:
             pickle.dump(testData, ff)
 
     return (trainData, testData)
 
-def classify(dbFileLoc, gtfsDir, nPts=1, agency="dbus"):
+def classify(dbFileLoc, gtfsDir, nPts=1, agency="dbus", kneighbors=10,
+             speed=10):
 
     utils.printCurrentTime()
     print "Building service calendar"
@@ -270,7 +271,7 @@ def classify(dbFileLoc, gtfsDir, nPts=1, agency="dbus"):
     if nPts > 1:
         xTrain, labelsTrain = preprocess(trainData, nPts=-nPts)
     else:
-        xTrain, labelsTrain = preprocess(trainData, nPts=nPts)
+        xTrain, labelsTrain = preprocess(trainData, nPts=nPts, speed=speed)
     utils.printCurrentTime()
     print "preprocessing test data"
     # here split test set by nPts regardless of train or test
@@ -310,7 +311,7 @@ def classify(dbFileLoc, gtfsDir, nPts=1, agency="dbus"):
         utils.printCurrentTime()
         if nPts == 1:
             print "training classifier"
-            clf = KNeighborsClassifier(n_neighbors=10)
+            clf = KNeighborsClassifier(n_neighbors=kneighbors)
             # clf = DecisionTreeClassifier(max_depth=10)
             clf.fit(xTrain.iloc[trainIdx], yTrain[trainIdx])
 
@@ -333,12 +334,12 @@ def classify(dbFileLoc, gtfsDir, nPts=1, agency="dbus"):
             print "DTW module not available, can't use nPts > 1"
             raise ImportError(dtw)
 
-        summarizeClassifications(yTest[testIdx], yHat[testIdx], encoder,
-                                 showPlots=False)
+#        summarizeClassifications(yTest[testIdx], yHat[testIdx], encoder,
+#                                 showPlots=False)
 
     utils.printCurrentTime()
-    print "//////////Overall classification statistics\\\\\\\\\\"
-    summarizeClassifications(yTest, yHat, encoder)
+#    print "//////////Overall classification statistics\\\\\\\\\\"
+#    summarizeClassifications(yTest, yHat, encoder)
 
     print "Done"
 

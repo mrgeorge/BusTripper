@@ -156,7 +156,8 @@ class TripDistances(object):
         totTime = float(locList[-1].ts - locList[0].ts)
         
         # an arbitrary weight, to ensure that more data is better:
-        increaseFactor = (float(self.ageMillis)/totTime)**2.0
+#        increaseFactor = (float(self.ageMillis)/totTime)**2.0
+        increaseFactor = 1.
         
         dInt = integrate.simps(distSeries, timeSeries)
         dWeight = 1.0
@@ -279,7 +280,7 @@ class TripDistances(object):
     
     def updateTime(self,time):
         self.time = time
-        
+
         daystart = self.gtfsData.getDaystartFromTimestampMillis(time)
         self.daystart = max(self.daystart, daystart)
         

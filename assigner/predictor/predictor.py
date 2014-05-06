@@ -159,7 +159,7 @@ if __name__ == "__main__":
     #Pseudocode: for each raw location in the events DB, update
     #No need for location manager?  -- Just feed data from db directly into self.newRawLocation (not sure about this)
 
-    dateStart = datetime(2013, 8, 1)
+    dateStart = datetime(2013, 12, 1)
     dateStartStr = dateStart.date().isoformat()
     dateEndStr = (dateStart + relativedelta(days=0)).date().isoformat()
     #print "Selecting data from {} to {}".format(dateStartStr, dateEndStr)
@@ -173,7 +173,7 @@ if __name__ == "__main__":
                                      "longitude"),
                                tableName="raw_loc_subset",
                                date=(dateStartStr, dateEndStr),
-                               time=("11:00:00", "11:05:00"),
+#                               time=("11:00:00", "11:05:00"),
                                convertTime=False)
             pickle.dump(df, f)
 

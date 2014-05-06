@@ -226,7 +226,28 @@ class GtfsData(object):
         
         return None
     
-    
+    def projectToShape_Shapely(self, shape, rawLoc):
+        """Replacement for projectToShape if user has shapely"""
+        try:
+            import shapely.geometry
+        except ImportError:
+            return self.projectToShape(shape, rawLoc)
+
+        point = shapely.geometry.asPoint((rawLoc.lon, rawLoc.lat))
+        line = shapely.geometry.asLineString([[pt['lon'], pt['lat']]
+                                              for pt in shape.pointList])
+        projPt = line.interpolate(line.project(point))
+
+        projLoc = ProjectedLocation()
+        projLoc.lat = projPt.y
+        projLoc.lon = projPt.x
+        projLoc.perpKm = kmBetweenLatLonPair(point.y, point.x,
+                                             projPt.y, projPt.x)
+        projLoc.postKm = (line.project(projPt, normalized=True) *
+                          shape.pointList[-1]['post'])
+
+        return projLoc
+
     def projectToShape(self, shape, rawLoc):
         # lat, lon constitute the origin of our local coordinate system.
         # Latitudes represent y-distances, longitudes x-distances (need to

@@ -60,27 +60,6 @@ class AssignedTrips(object):
                 badList.append(deviceId)
         return badList
 
-    def getAccuracy(self):
-        badList = self.getInaccurateAssignedDeviceList()
-        goodList = []
-        for deviceId in self.assignedTripDict:
-            assignedBlock = self.assignedTripDict[deviceId].block
-
-            candidateBlocks = [x['block'] for x in 
-                               self.tripDistances.candidateBlocks[deviceId]]
-
-            if assignedBlock in candidateBlocks:
-                goodList.append(deviceId)
-        if len(goodList) + len(badList) == 0:
-            print "Error: no trips assigned"
-            accuracy = None
-        else:
-            accuracy = len(goodList) / (len(goodList) + len(badList))
-            print "Accuracy is " + str(accuracy)
-
-        return accuracy
-
-    
     def getBacktrackingDeviceList(self):
         backtrackList = []
         for deviceId in self.assignedTripDict:

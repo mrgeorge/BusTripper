@@ -131,13 +131,13 @@ if __name__ == "__main__":
     
     #locMan = LocationManager(myPredictor)
     
-    tStart = time.time()
+#    tStart = time.time()
     
     # tLim = 60*60*24*365*10
     
     # prevTime = 0
 
-    timeLimit = 3600 + tStart #cap at 1 hour
+#    timeLimit = 3600 + tStart #cap at 1 hour
 
 
 
@@ -161,7 +161,7 @@ if __name__ == "__main__":
 
     dateStart = datetime(2013, 12, 1)
     dateStartStr = dateStart.date().isoformat()
-    dateEndStr = (dateStart + relativedelta(days=0)).date().isoformat()
+    dateEndStr = (dateStart + relativedelta(days=7)).date().isoformat()
     #print "Selecting data from {} to {}".format(dateStartStr, dateEndStr)
     try:
         with open('rl.temp.pickle','r') as f:
@@ -170,28 +170,40 @@ if __name__ == "__main__":
         with open('rl.temp.pickle','wb') as f:
             db = BusTripper.eventsDBManager.EventsDB(args.events_db)
             df = db.selectData(cols=("device_id", "time", "latitude",
-                                     "longitude"),
-                               tableName="raw_loc_subset",
+                                     "longitude", "trip_id"),
+                               tableName="rlev",
                                date=(dateStartStr, dateEndStr),
 #                               time=("11:00:00", "11:05:00"),
                                convertTime=False)
             pickle.dump(df, f)
 
     print "Adding data for this month to predictor"
+    nLocations = 0
+    nCorrectNotNull = 0
+    nCorrectNull = 0
     for ind,row in df.iterrows():
         rawLoc = rawLocation(row['device_id'], row['time'],
                              row['latitude'], row['longitude'])
         #print rawLoc.ts
         myPredictor.newRawLocation(rawLoc)
 
-        if (time.time() > timeLimit):
-            print "Time is up - breaking..."
-            myPredictor.tripClassifier.assignedTrips.getAccuracy() #breaking abstraction barriers, to be cleaned up
-            break
+        nLocations += 1
+        trip = myPredictor.tripClassifier.assignedTrips.assignedTripDict.get(
+                row['device_id'])
+        if (trip is not None and trip.trip.tripId == row['trip_id']):
+            nCorrectNotNull += 1
+        elif (trip is None and row['trip_id'] is None):
+            nCorrectNull += 1
 
-    print "Cumulative accuracy through {}".format(dateEndStr)
-    myPredictor.tripClassifier.assignedTrips.getAccuracy() #breaking abstraction barriers, to be cleaned up
+#        if (time.time() > timeLimit):
+#            print "Time is up - breaking..."
+#            break
 
-    
+        if nLocations % 1000 == 0:
+            print "(nCorrectNotNull+nCorrectNull)/nLocations = ({}+{})/{} = {}".format(
+                nCorrectNotNull, nCorrectNull, nLocations,
+                1.*(nCorrectNotNull+nCorrectNull)/nLocations)
 
-    #for ii in range(nMonths):
+    print "(nCorrectNotNull+nCorrectNull)/nLocations = ({}+{})/{} = {}".format(
+        nCorrectNotNull, nCorrectNull, nLocations,
+        1.*(nCorrectNotNull+nCorrectNull)/nLocations)

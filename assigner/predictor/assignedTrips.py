@@ -9,6 +9,7 @@ from assignedTrip import AssignedTrip
 import util
 import time
 from pygtfs.projectedLocation import createJsonFromProjLoc
+from pygtfs.util import kmBetweenLatLonPair
 import json
 import pprint
 
@@ -189,6 +190,17 @@ class AssignedTrips(object):
             
             self.assignedTripDict[deviceId].post = projLoc.postKm
             self.assignedTripDict[deviceId].time = rawTime
+
+            offsetKm = kmBetweenLatLonPair(projLoc.lat, projLoc.lon, 
+                                           rawLoc.lat, rawLoc.lon)
+            
+            # if the projected location is more than 100 m from the raw location:
+            if offsetKm > 0.1:
+                self.logger.info("Raw location is more than 100 m from projected location. Deassigning device.")
+                self.logger.info("Raw location: lat=%f, lon=%f. Projected location: lat=%f, lon=%f." 
+                                 % (rawLoc.lat, rawLoc.lon, projLoc.lat, projLoc.lon))
+                self.assignedTripDict.pop(deviceId, None)
+                return None
             
 #             print postKm
             

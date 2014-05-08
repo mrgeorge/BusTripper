@@ -41,8 +41,8 @@ class AssignedTrips(object):
             tenMinutes = 10*60*1000
             recentLocs = self.tripDistances.locationBuckets[deviceId].getRecent(tenMinutes)
             if (len(recentLocs) == 0):
-                self.logger.debug("%s had old data. Deassigning trip." 
-                                  % (deviceId))
+                self.logger.info("%s had old data. Deassigning trip." 
+                                 % (deviceId))
                 oldList.append(deviceId)
         return oldList
     
@@ -56,8 +56,8 @@ class AssignedTrips(object):
                                self.tripDistances.candidateBlocks[deviceId]]
             
             if assignedBlock not in candidateBlocks:
-                self.logger.debug("%s had bad block %s. Deassigning trip." 
-                                  % (deviceId, assignedBlock))
+                self.logger.info("%s had bad block %s. Deassigning trip." 
+                                 % (deviceId, assignedBlock))
                 badList.append(deviceId)
         return badList
 
@@ -65,8 +65,8 @@ class AssignedTrips(object):
         backtrackList = []
         for deviceId in self.assignedTripDict:
             if self.assignedTripDict[deviceId].hasBacktracked():
-                self.logger.debug("%s backtracked too far. Deassigning trip." 
-                                  % (deviceId))
+                self.logger.info("%s backtracked too far. Deassigning trip." 
+                                 % (deviceId))
                 backtrackList.append(deviceId)
         return backtrackList
     
@@ -303,12 +303,12 @@ class AssignedTrips(object):
         prevTime = self.assignedTripDict[deviceId].time
         post = initPost
         if nextTrip is not None:
-            self.logger.debug("Assigning next trip %r." % nextTrip)
+            self.logger.info("Assigning next trip %r." % nextTrip)
             self.assignUnassignedTripToDevice(deviceId, prevTime, nextTrip, 
                                               currentBlock, post)
             return True
         else:
-            self.logger.debug("No next trip (end of block). Deassigning device.")
+            self.logger.info("No next trip (end of block). Deassigning device.")
             self.assignedTripDict.pop(deviceId, None)
             return False
         

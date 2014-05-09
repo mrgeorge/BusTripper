@@ -169,6 +169,12 @@ class AssignedTrips(object):
             rawTime > self.assignedTripDict[deviceId].time):
             trip = self.assignedTripDict[deviceId].trip
             shape = self.gtfsData.getShapeFromShapeId(trip.shapeId)
+
+            prevTrip = self.gtfsData.getPreviousTripInBlock(trip.tripId)
+            if prevTrip is not None:
+                prevShape = self.gtfsData.getShapeFromShapeId(prevTrip.shapeId)
+            else:
+                prevShape = None
             
             # get target postmile
             if postTarget is None:
@@ -177,7 +183,8 @@ class AssignedTrips(object):
                 postTarget = currentPost + dt*util.vfid
 #                 print currentPost, postTarget
                 
-            projLoc = self.gtfsData.projectToShapeWithTarget(shape, 
+            projLoc = self.gtfsData.projectToShapeWithTarget(shape,
+                                                             prevShape,
                                                              rawLoc,
                                                              postTarget)
             projLoc.tripId = trip.tripId

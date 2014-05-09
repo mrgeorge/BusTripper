@@ -17,6 +17,7 @@ import math
 from util import kmBetweenLatLonPair, kmPerDeg
 from pygtfs.location import Location
 import logging
+import copy
 
 class GtfsData(object):
     '''
@@ -211,7 +212,26 @@ class GtfsData(object):
                 return None
             
         return None
-    
+
+    def getPreviousTripInBlock(self, tripId):
+        trip = self.getTripFromTripId(tripId)
+        tripList = None
+        for block in self.blockDict.values():
+            if tripId in block.tripDict:
+                tripList = block.tripDict.values()
+                break
+        
+        if tripList is not None:
+            tripList.sort()
+            thisTripIndex = tripList.index(trip)
+            if (thisTripIndex > 0):
+                prevTripIndex = thisTripIndex - 1
+                return tripList[prevTripIndex]
+            else:
+                return None
+            
+        return None
+
     
     def getStopFromStopId(self, stopId):
         if stopId in self.stopDict:
@@ -298,7 +318,7 @@ class GtfsData(object):
         return projLoc
     
     
-    def projectToShapeWithTarget(self, shape, rawLoc, postTarget):
+    def projectToShapeWithTarget(self, shape, prevShape, rawLoc, postTarget):
         # lat, lon constitute the origin of our local coordinate system.
         # Latitudes represent y-distances, longitudes x-distances (need to
         # correct for the local latitude, though). Iterate over points in 
@@ -313,14 +333,26 @@ class GtfsData(object):
         
         convFactor = math.cos(lat*math.pi/180.)
         
-        sumMin = 0.
+        minPerpDist = 0.
         
-        for i, point in enumerate(shape.pointList):
-            if (i < len(shape.pointList) - 1):
+        allPoints = copy.deepcopy(shape.pointList)
+
+        # Add previous shape to this shape if we haven't yet reached the first
+        # stop on this trip.
+        if prevShape is not None and postTarget < 0:
+            postMax = prevShape.pointList[-1]['post']
+            prevPoints = copy.deepcopy(prevShape.pointList)
+            for point in prevPoints:
+                point['post'] = point['post'] - postMax
+            allPoints = prevPoints + allPoints
+
+        for i, point in enumerate(allPoints):
+            if (i < len(allPoints) - 1):
+
                 y1 = point['lat']-lat
-                y2 = shape.pointList[i+1]['lat']-lat
+                y2 = allPoints[i+1]['lat']-lat
                 x1 = (point['lon']-lon)*convFactor
-                x2 = (shape.pointList[i+1]['lon']-lon)*convFactor
+                x2 = (allPoints[i+1]['lon']-lon)*convFactor
                 
                 # project to segment
                 xproj, yproj = self.getClosestPointOnSegment(0., 0., x1, x2, y1, y2)
@@ -332,14 +364,16 @@ class GtfsData(object):
                 # get the post-km
                 if (segLen > 0.0):
                     frac = ((xproj-x1)**2.0 + (yproj-y1)**2.0)**0.5 / segLen
-                    postKm = point['post'] + frac*(shape.pointList[i+1]['post'] - point['post'])
+                    postKm = point['post'] + frac*(allPoints[i+1]['post'] - point['post'])
                 else:
                     postKm = point['post']
                     
-                postDev = math.fabs(postKm - postTarget)/kmPerDeg
-                        
-                if (i == 0 or (perpDist+postDev) < sumMin):
-                    sumMin = perpDist+postDev
+                postDev = math.fabs(postKm - postTarget)
+
+                # Arbitrarily ensure that deviation from expected postmile is
+                # less than 500 meters.
+                if (i == 0 or (perpDist < minPerpDist and postDev < 0.2)):
+                    minPerpDist = perpDist
                     xmin, ymin = xproj, yproj
 #                     print "postKm, postTarget:"
 #                     print postKm, postTarget

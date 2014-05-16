@@ -5,3 +5,5 @@
 dbus_events.db
 *.pickle
 /notebooks*
+*.dat
+*.log

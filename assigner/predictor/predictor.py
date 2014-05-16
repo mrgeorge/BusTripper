@@ -181,6 +181,9 @@ if __name__ == "__main__":
     nLocations = 0
     nCorrectNotNull = 0
     nCorrectNull = 0
+
+    ff = open("predictor_output.dat",'w')
+
     for ind,row in df.iterrows():
         rawLoc = rawLocation(row['device_id'], row['time'],
                              row['latitude'], row['longitude'])
@@ -195,15 +198,21 @@ if __name__ == "__main__":
         elif (trip is None and row['trip_id'] is None):
             nCorrectNull += 1
 
-#        if (time.time() > timeLimit):
-#            print "Time is up - breaking..."
-#            break
+        if trip is None:
+            tripId = None
+        else:
+            tripId = trip.trip.tripId
+        ff.write("{}, {}, {}, {}\n".format(row['device_id'], row['time'], row['trip_id'], tripId))
 
         if nLocations % 1000 == 0:
             print "(nCorrectNotNull+nCorrectNull)/nLocations = ({}+{})/{} = {}".format(
                 nCorrectNotNull, nCorrectNull, nLocations,
                 1.*(nCorrectNotNull+nCorrectNull)/nLocations)
+            ff.close()
+            ff = open("predictor_output.dat",'a')
 
+
+    ff.close()
     print "(nCorrectNotNull+nCorrectNull)/nLocations = ({}+{})/{} = {}".format(
         nCorrectNotNull, nCorrectNull, nLocations,
         1.*(nCorrectNotNull+nCorrectNull)/nLocations)
